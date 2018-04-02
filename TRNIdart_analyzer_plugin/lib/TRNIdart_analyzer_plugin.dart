@@ -1,0 +1,1 @@
+library TRNIdart_analyzer_plugin;

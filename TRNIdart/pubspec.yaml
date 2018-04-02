@@ -1,0 +1,16 @@
+name: TRNIdart
+description: A sample command-line application.
+version: 0.0.1
+#homepage: https://www.example.com
+#author: mmeneses <email@example.com>
+
+environment:
+  sdk: '>=1.20.1 <2.0.0'
+
+dependencies:
+  TRNIdart_analyzer_plugin:
+    path: ../TRNIdart_analyzer_plugin
+#  path: ^1.4.1
+
+dev_dependencies:
+  test: ^0.12.0

@@ -1,1 +1,0 @@
-library RNIdart_analyzer_plugin;
