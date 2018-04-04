@@ -119,7 +119,7 @@ class TRNIDriver implements AnalysisDriverGeneric {
 
     // TODO integrate with host package, for now only shows "hello world" error
     List<AnalysisError> errors = new List();
-    errors.add(new AnalysisError(unitAst.element.librarySource, 0, 10,
+    errors.add(new AnalysisError(unitAst.element.source, 0, 10,
         new StaticError("Hello world", "This plugin works!")));
     return new TRNIResult(errors);
   }
