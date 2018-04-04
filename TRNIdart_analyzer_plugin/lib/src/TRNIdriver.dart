@@ -68,7 +68,7 @@ class TRNIDriver implements AnalysisDriverGeneric {
       // a queue that won't be completed until the scheduler schedules the dart
       // driver, which doesn't happen because its waiting for us.
       //resolveDart(path).then((result) {
-      _resolveSecDart(path).then((result) {
+      _resolveTRNIDart(path).then((result) {
         completers
             .forEach((completer) => completer.complete(result?.errors ?? []));
       }, onError: (e) {
@@ -100,7 +100,7 @@ class TRNIDriver implements AnalysisDriverGeneric {
     return completer.future;
   }
 
-  Future<TRNIResult> _resolveSecDart(String path) async {
+  Future<TRNIResult> _resolveTRNIDart(String path) async {
     final unit = await dartDriver.getUnitElement(path);
     final result = await dartDriver.getResult(path);
     if (unit.element == null) return null;
@@ -125,7 +125,7 @@ class TRNIDriver implements AnalysisDriverGeneric {
   }
 
   Future pushDartErrors(String path) async {
-    final result = await _resolveSecDart(path);
+    final result = await _resolveTRNIDart(path);
     if (result == null) return;
     final errors = new List<AnalysisError>.from(result.errors);
     final lineInfo = new LineInfo.fromContent(getFileContent(path));
@@ -162,15 +162,12 @@ class StaticError implements ErrorCode {
 
   StaticError(String this.name, String this.message, [String this.correction]);
 
-  // TODO: implement errorSeverity
   @override
   ErrorSeverity get errorSeverity => ErrorSeverity.ERROR;
 
-  // TODO: implement type
   @override
   ErrorType get type => ErrorType.STATIC_WARNING;
 
-  // TODO: implement uniqueName
   @override
   String get uniqueName => this.name;
 }

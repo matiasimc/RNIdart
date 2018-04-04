@@ -31,6 +31,9 @@ class TRNIDartPlugin extends ServerPlugin {
   String get version => '0.0.1';
 
   @override
+  bool isCompatibleWith(Version serverVersion) => true;
+
+  @override
   AnalysisDriverGeneric createAnalysisDriver(ContextRoot contextRoot) {
     //Taken from angular_plugin
     final root = new analyzer.ContextRoot(contextRoot.root, contextRoot.exclude)
@@ -51,17 +54,32 @@ class TRNIDartPlugin extends ServerPlugin {
       analysisDriverScheduler,
       sourceFactory,
       fileContentOverlay);
-
     return driver;
   }
 
-
-
   @override
-  void sendNotificationsForSubscriptions(
-      Map<String, List<AnalysisService>> subscriptions) {
-    // TODO: implement sendNotificationsForSubscriptions
+  void contentChanged(String path) {
+    final driver = TRNIDriverForPath(path);
+    if (driver == null) {
+      return;
+    }
+    driver
+      ..addFile(path)
+      ..fileChanged(path);
+
+    driver.dartDriver
+      ..addFile(path)
+      ..changeFile(path);
   }
+
+  TRNIDriver TRNIDriverForPath(String path) {
+    final driver = super.driverForPath(path);
+    if (driver is TRNIDriver) {
+      return driver;
+    }
+    return null;
+  }
+
 }
 
 class ChannelNotificationManager implements NotificationManager {
