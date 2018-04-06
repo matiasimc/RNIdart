@@ -60,7 +60,7 @@ class TRNIDriver implements AnalysisDriverGeneric {
   bool get hasFilesToAnalyze => _filesToAnalyze.isNotEmpty;
 
   @override
-  Future<dynamic> performWork() async {
+  Future<Null> performWork() async {
     if (_requestedDartFiles.isNotEmpty) {
       final path = _requestedDartFiles.keys.first;
       final completers = _requestedDartFiles.remove(path);
@@ -101,6 +101,7 @@ class TRNIDriver implements AnalysisDriverGeneric {
   }
 
   Future<TRNIResult> _resolveTRNIDart(String path) async {
+    if (!_ownsFile(path)) return new TRNIResult(new List());
     final unit = await dartDriver.getUnitElement(path);
     final result = await dartDriver.getResult(path);
     if (unit.element == null) return null;
