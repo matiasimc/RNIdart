@@ -5,6 +5,7 @@ import 'package:analyzer/src/generated/source.dart';
 import 'package:analyzer/error/error.dart';
 import 'package:analyzer/src/dart/analysis/driver.dart';
 import 'package:analyzer/src/dart/analysis/file_state.dart';
+import 'package:TRNIdart_analyzer/analyzer.dart';
 
 abstract class NotificationManager {
   void recordAnalysisErrors(
@@ -118,11 +119,7 @@ class TRNIDriver implements AnalysisDriverGeneric {
 
     final unitAst = unit.element.computeNode();
 
-    // TODO integrate with host package, for now only shows "hello world" error
-    List<AnalysisError> errors = new List();
-    errors.add(new AnalysisError(unitAst.element.source, 0, 0,
-        new StaticError("Hello world", "This plugin works!")));
-    return new TRNIResult(errors);
+    return new TRNIResult(TRNIAnalyzer.computeErrors(unitAst));
   }
 
   Future pushDartErrors(String path) async {

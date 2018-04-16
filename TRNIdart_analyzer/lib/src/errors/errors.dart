@@ -6,7 +6,7 @@ class UndefinedInterface implements ErrorCode {
   final String correction;
 
   UndefinedInterface(String element, [String this.correction]) {
-    this.message = "Undefined interface for element ${element}";
+    this.message = "Undefined security policy for element ${element}";
   }
 
   @override

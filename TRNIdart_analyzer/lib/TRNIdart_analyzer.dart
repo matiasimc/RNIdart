@@ -10,6 +10,7 @@ export 'src/tools/StringSource.dart';
 export 'src/visitors/ListAllNodesVisitor.dart';
 export 'src/visitors/CompilationUnitVisitor.dart';
 export 'src/visitors/RefiningVisitor.dart';
+export 'src/visitors/label_visitor.dart';
 export 'src/environment/Usage.dart';
 export 'src/elements/FieldElement.dart';
 export 'src/elements/FunctionElement.dart';
@@ -24,5 +25,7 @@ export 'package:analyzer/analyzer.dart';
 export 'src/inference/Inference.dart';
 export 'src/inference/AbstractClass.dart';
 export 'src/inference/NodeGenerator.dart';
+export 'src/errors/collector.dart';
+export 'src/errors/errors.dart';
 
 // TODO: Export any libraries intended for clients of this package.

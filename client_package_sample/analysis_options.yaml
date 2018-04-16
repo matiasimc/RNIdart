@@ -3,10 +3,6 @@ analyzer:
   plugins:
     - TRNIdart
 
-#   exclude:
-#     - path/to/excluded/files/**
-
-# Lint rules and documentation, see http://dart-lang.github.io/linter/lints
 linter:
   rules:
     - cancel_subscriptions
