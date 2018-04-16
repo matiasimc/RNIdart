@@ -12,11 +12,19 @@ class ClassDeclarationVisitor extends RecursiveAstVisitor {
 
   @override
   visitMethodDeclaration(MethodDeclaration node) {
-    // TODO call method declaration visitor, similar to FunctionDeclarationVisitor
+    if (!this.classElement.methods.containsKey(node.element.name)) {
+      MethodElement m = new MethodElement(node);
+      this.classElement.methods[node.element.name] = m;
+      node.visitChildren(new MethodDeclarationVisitor(this.env, m));
+    }
   }
 
   @override
   visitFieldDeclaration(FieldDeclaration node) {
-    // TODO call field declaration visitor
+    if (!this.classElement.fields.containsKey(node.element.name)) {
+      FieldElement f = new FieldElement(node);
+      this.classElement.fields[node.element.name] = f;
+      // TODO call field declaration visitor
+    }
   }
 }

@@ -5,6 +5,7 @@ import 'package:analyzer/src/dart/analysis/driver.dart';
 import 'package:analyzer/src/dart/analysis/performance_logger.dart';
 import 'package:analyzer_plugin/protocol/protocol_generated.dart';
 import 'package:analyzer_plugin/plugin/plugin.dart';
+import 'package:analyzer_plugin/utilities/fixes/fixes.dart';
 import 'package:pub_semver/pub_semver.dart';
 
 import 'package:analyzer/error/error.dart';
@@ -14,11 +15,12 @@ import 'package:analyzer_plugin/protocol/protocol_constants.dart' as plugin;
 import 'package:analyzer_plugin/protocol/protocol_generated.dart' as plugin;
 import 'package:analyzer_plugin/utilities/analyzer_converter.dart';
 import 'package:TRNIdart_analyzer_plugin/src/TRNIdriver.dart';
+import 'package:analyzer_plugin/plugin/fix_mixin.dart';
 
 /*
 I used raimilcruz/secdart repo as a guide to implement this and other classes
  */
-class TRNIDartPlugin extends ServerPlugin {
+class TRNIDartPlugin extends ServerPlugin with FixesMixin, DartFixesMixin {
   TRNIDartPlugin(ResourceProvider provider) : super(provider);
 
   @override
@@ -78,6 +80,11 @@ class TRNIDartPlugin extends ServerPlugin {
       return driver;
     }
     return null;
+  }
+
+  @override
+  List<FixContributor> getFixContributors(String path) {
+    // TODO: implement getFixContributors
   }
 
 }
