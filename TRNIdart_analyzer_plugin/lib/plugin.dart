@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:TRNIdart_analyzer_plugin/src/fixes.dart';
 import 'package:analyzer/context/context_root.dart' as analyzer;
 import 'package:analyzer/file_system/file_system.dart';
 import 'package:analyzer/src/context/builder.dart';
@@ -7,7 +10,7 @@ import 'package:analyzer_plugin/protocol/protocol_generated.dart';
 import 'package:analyzer_plugin/plugin/plugin.dart';
 import 'package:analyzer_plugin/utilities/fixes/fixes.dart';
 import 'package:pub_semver/pub_semver.dart';
-
+import 'package:analyzer_plugin/src/utilities/fixes/fixes.dart';
 import 'package:analyzer/error/error.dart';
 import 'package:analyzer/src/generated/source.dart';
 import 'package:analyzer_plugin/channel/channel.dart';
@@ -16,12 +19,14 @@ import 'package:analyzer_plugin/protocol/protocol_generated.dart' as plugin;
 import 'package:analyzer_plugin/utilities/analyzer_converter.dart';
 import 'package:TRNIdart_analyzer_plugin/src/TRNIdriver.dart';
 import 'package:analyzer_plugin/plugin/fix_mixin.dart';
+import 'dart:io';
 
 /*
 I used raimilcruz/secdart repo as a guide to implement this and other classes
  */
 class TRNIDartPlugin extends ServerPlugin with FixesMixin, DartFixesMixin {
   TRNIDartPlugin(ResourceProvider provider) : super(provider);
+
 
   @override
   List<String> get fileGlobsToAnalyze => <String>['**/*.dart'];
@@ -37,7 +42,6 @@ class TRNIDartPlugin extends ServerPlugin with FixesMixin, DartFixesMixin {
 
   @override
   AnalysisDriverGeneric createAnalysisDriver(ContextRoot contextRoot) {
-    //Taken from angular_plugin
     final root = new analyzer.ContextRoot(contextRoot.root, contextRoot.exclude)
       ..optionsFilePath = contextRoot.optionsFile;
 
@@ -84,10 +88,12 @@ class TRNIDartPlugin extends ServerPlugin with FixesMixin, DartFixesMixin {
 
   @override
   List<FixContributor> getFixContributors(String path) {
-    // TODO: implement getFixContributors
+    return <FixContributor>[new TRNIFixContributor()];
   }
 
+
 }
+
 
 class ChannelNotificationManager implements NotificationManager {
   final PluginCommunicationChannel channel;

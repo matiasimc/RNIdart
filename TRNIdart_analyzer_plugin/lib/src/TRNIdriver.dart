@@ -54,7 +54,6 @@ class TRNIDriver implements AnalysisDriverGeneric {
 
   @override
   void dispose() {
-    // TODO: implement dispose
   }
 
   @override
@@ -69,7 +68,7 @@ class TRNIDriver implements AnalysisDriverGeneric {
       // a queue that won't be completed until the scheduler schedules the dart
       // driver, which doesn't happen because its waiting for us.
       //resolveDart(path).then((result) {
-      _resolveTRNIDart(path).then((result) {
+      resolveTRNIDart(path).then((result) {
         completers
             .forEach((completer) => completer.complete(result?.errors ?? []));
       }, onError: (e) {
@@ -91,39 +90,17 @@ class TRNIDriver implements AnalysisDriverGeneric {
     return;
   }
 
-  //public api
-  Future<List<AnalysisError>> requestDartErrors(String path) {
-    var completer = new Completer<List<AnalysisError>>();
-    _requestedDartFiles
-        .putIfAbsent(path, () => <Completer<List<AnalysisError>>>[])
-        .add(completer);
-    _scheduler.notify(this);
-    return completer.future;
-  }
-
-  Future<TRNIResult> _resolveTRNIDart(String path) async {
+  Future<TRNIResult> resolveTRNIDart(String path) async {
     if (!_ownsFile(path)) return new TRNIResult(new List());
     final unit = await dartDriver.getUnitElement(path);
-    final result = await dartDriver.getResult(path);
     if (unit.element == null) return null;
 
-    //TODO: Filter error in a better way...
-    if (result.errors != null) {
-      var realErrors = result.errors
-          .where((e) => e.errorCode.errorSeverity == ErrorSeverity.ERROR)
-          .toList();
-      if (realErrors.length != 0) {
-        return new TRNIResult(realErrors);
-      }
-    }
-
     final unitAst = unit.element.computeNode();
-
     return new TRNIResult(TRNIAnalyzer.computeErrors(unitAst));
   }
 
   Future pushDartErrors(String path) async {
-    final result = await _resolveTRNIDart(path);
+    final result = await resolveTRNIDart(path);
     if (result == null) return;
     final errors = new List<AnalysisError>.from(result.errors);
     final lineInfo = new LineInfo.fromContent(getFileContent(path));
@@ -151,21 +128,4 @@ class TRNIDriver implements AnalysisDriverGeneric {
 class TRNIResult {
   List<AnalysisError> errors;
   TRNIResult(this.errors);
-}
-
-class StaticError implements ErrorCode {
-  final String name;
-  final String message;
-  final String correction;
-
-  StaticError(String this.name, String this.message, [String this.correction]);
-
-  @override
-  ErrorSeverity get errorSeverity => ErrorSeverity.ERROR;
-
-  @override
-  ErrorType get type => ErrorType.STATIC_WARNING;
-
-  @override
-  String get uniqueName => this.name;
 }

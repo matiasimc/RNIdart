@@ -10,7 +10,7 @@ class LabelVisitor extends RecursiveAstVisitor {
   visitVariableDeclarationList(VariableDeclarationList node) {
     bool hasInterface = node.metadata.map((a) => a.name == "interface").isNotEmpty;
     if (!hasInterface) errorCollector.errors.add(
-      new AnalysisError(node.variables[0].element.source, node.offset, node.length, new UndefinedInterface(node.toSource()))
+      new UndefinedInterfaceError(node.variables[0].element.source, node.offset, node.length, null, node.toSource())
     );
     return super.visitVariableDeclarationList(node);
   }
@@ -19,7 +19,7 @@ class LabelVisitor extends RecursiveAstVisitor {
   visitMethodDeclaration(MethodDeclaration node) {
     bool hasInterface = node.metadata.map((a) => a.name == "interface").isNotEmpty;
     if (!hasInterface) errorCollector.errors.add(
-        new AnalysisError(node.element.source, node.offset, node.length, new UndefinedInterface(node.toSource()))
+        new UndefinedInterfaceError(node.element.source, node.offset, node.length, null, node.toSource())
     );
     return super.visitMethodDeclaration(node);
   }
@@ -28,7 +28,7 @@ class LabelVisitor extends RecursiveAstVisitor {
   visitFunctionDeclaration(FunctionDeclaration node) {
     bool hasInterface = node.metadata.map((a) => a.name == "interface").isNotEmpty;
     if (!hasInterface) errorCollector.errors.add(
-        new AnalysisError(node.element.source, node.offset, node.length, new UndefinedInterface(node.toSource()))
+        new UndefinedInterfaceError(node.element.source, node.offset, node.length, null, node.toSource())
     );
     return super.visitFunctionDeclaration(node);
   }
@@ -37,7 +37,7 @@ class LabelVisitor extends RecursiveAstVisitor {
   visitTopLevelVariableDeclaration(TopLevelVariableDeclaration node) {
     bool hasInterface = node.metadata.map((a) => a.name == "interface").isNotEmpty;
     if (!hasInterface) errorCollector.errors.add(
-        new AnalysisError(node.element.source, node.offset, node.length, new UndefinedInterface(node.toSource()))
+        new UndefinedInterfaceError(node.element.source, node.offset, node.length, null, node.toSource())
     );
     return super.visitTopLevelVariableDeclaration(node);
   }
@@ -46,7 +46,7 @@ class LabelVisitor extends RecursiveAstVisitor {
   visitFieldDeclaration(FieldDeclaration node) {
     bool hasInterface = node.metadata.map((a) => a.name == "interface").isNotEmpty;
     if (!hasInterface) errorCollector.errors.add(
-        new AnalysisError(node.element.source, node.offset, node.length, new UndefinedInterface(node.toSource()))
+        new UndefinedInterfaceError(node.element.source, node.offset, node.length, null, node.toSource())
     );
     return super.visitFieldDeclaration(node);
   }
@@ -55,7 +55,7 @@ class LabelVisitor extends RecursiveAstVisitor {
   visitSimpleFormalParameter(SimpleFormalParameter node) {
     bool hasInterface = node.metadata.map((a) => a.name == "interface").isNotEmpty;
     if (!hasInterface) errorCollector.errors.add(
-        new AnalysisError(node.element.source, node.offset, node.length, new UndefinedInterface(node.toSource()))
+        new UndefinedInterfaceError(node.element.source, node.offset, node.length, null, node.toSource())
     );
     return super.visitSimpleFormalParameter(node);
   }
