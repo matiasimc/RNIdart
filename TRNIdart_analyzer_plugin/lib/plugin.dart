@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:TRNIdart_analyzer_plugin/src/fixes.dart';
 import 'package:analyzer/context/context_root.dart' as analyzer;
+import 'package:analyzer/dart/analysis/session.dart';
 import 'package:analyzer/file_system/file_system.dart';
 import 'package:analyzer/src/context/builder.dart';
 import 'package:analyzer/src/dart/analysis/driver.dart';
@@ -24,7 +25,7 @@ import 'dart:io';
 /*
 I used raimilcruz/secdart repo as a guide to implement this and other classes
  */
-class TRNIDartPlugin extends ServerPlugin with FixesMixin, DartFixesMixin {
+class TRNIDartPlugin extends ServerPlugin with FixesMixin {
   TRNIDartPlugin(ResourceProvider provider) : super(provider);
 
 
@@ -88,9 +89,31 @@ class TRNIDartPlugin extends ServerPlugin with FixesMixin, DartFixesMixin {
 
   @override
   List<FixContributor> getFixContributors(String path) {
-    return <FixContributor>[new TRNIFixContributor()];
+    return <FixContributor>[new TRNIFixContributor(path)];
   }
 
+  @override
+  Future<FixesRequest> getFixesRequest(EditGetFixesParams parameters) async {
+    final TRNIDriver driver = TRNIDriverForPath(parameters.file);
+    if (driver != null) {
+      TRNIResult result = await driver.resolveTRNIDart(parameters.file);
+      AnalysisSession session = driver.dartDriver.currentSession;
+      return new TRNIFixesRequest(resourceProvider, parameters.offset, parameters.file, result.errors);
+    }
+    return null;
+  }
+
+
+}
+
+class TRNIFixesRequest extends FixesRequest {
+  ResourceProvider resourceProvider;
+  int offset;
+  String path;
+  List<AnalysisError> errorsToFix;
+  AnalysisSession session;
+
+  TRNIFixesRequest(this.resourceProvider, this.offset, this.path, this.errorsToFix);
 
 }
 
@@ -110,5 +133,5 @@ class ChannelNotificationManager implements NotificationManager {
     );
     channel.sendNotification(
         new plugin.AnalysisErrorsParams(path, errors).toNotification());
-  }
+    }
 }

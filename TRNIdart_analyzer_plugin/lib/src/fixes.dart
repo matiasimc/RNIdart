@@ -1,6 +1,9 @@
 import 'package:TRNIdart_analyzer/TRNIdart_analyzer.dart';
+import 'package:TRNIdart_analyzer_plugin/plugin.dart';
 import 'package:analyzer/dart/analysis/session.dart';
 import 'package:analyzer/error/error.dart';
+import 'package:analyzer_plugin/protocol/protocol_common.dart' hide AnalysisError;
+import 'package:analyzer_plugin/protocol/protocol_generated.dart';
 import 'package:analyzer_plugin/utilities/change_builder/change_builder_core.dart';
 import 'package:analyzer_plugin/utilities/fixes/fixes.dart';
 import 'package:analyzer_plugin/utilities/fixes/fix_contributor_mixin.dart';
@@ -9,21 +12,20 @@ import 'package:analyzer_plugin/utilities/range_factory.dart';
 import 'dart:io';
 
 
-class TRNIFixContributor extends Object with FixContributorMixin implements FixContributor {
+class TRNIFixContributor implements FixContributor {
+  String path;
 
-  static FixKind kind = new FixKind('dummyAdd', 100, "Message test");
-  AnalysisSession get session => request.result.session;
+  TRNIFixContributor(this.path);
 
-  void _dummyAdd(AnalysisError error) {
-    DartChangeBuilder builder = new DartChangeBuilder(session);
-    builder.addFileEdit(error.source.uri.toFilePath(), (DartFileEditBuilder fileEditBuilder) {
-      fileEditBuilder.addSimpleInsertion(error.offset, "@interface(\"DummyClass\")");
-    });
-    addFix(error, kind, builder);
-  }
 
   @override
-  void computeFixesForError(AnalysisError error) {
-    _dummyAdd(error);
+  void computeFixes(TRNIFixesRequest request, FixCollector collector) {
+    for (AnalysisError error in request.errorsToFix) {
+      SourceChange change = new SourceChange("Add dummy interface");
+      SourceFileEdit se = new SourceFileEdit(this.path, 1);
+      se.add(new SourceEdit(error.offset, 0, "@interface(\"DummyClass\") "));
+      change.addFileEdit(se);
+      collector.addFix(error, new PrioritizedSourceChange(100, change));
+    }
   }
 }
