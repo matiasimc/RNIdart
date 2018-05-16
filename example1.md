@@ -1,5 +1,6 @@
 # Ejemplo steps
 
+```javascript
 Action foo(Student a, Teacher b) {
 	a.learnFrom(b);
 	return b.teach(a);
@@ -20,6 +21,7 @@ class Teacher {
 		return this.name;
 	}
 }
+```
 
 ## Paso 1: Generar constraints considerando públicos argumentos y tipos de retorno de métodos llamados en el cuerpo del método.
 
@@ -85,6 +87,7 @@ Resolviendo las constraints:
 
 Anotando el programa, queda esto:
 
+```javascript
 @Action Action foo(@StudentLearnFrom Student a, @TeacherTeach Teacher b) {
 	a.learnFrom(b);
 	return b.teach(a);
@@ -117,7 +120,7 @@ abstract class TeacherTeach {
 abstract class TeacherGetName {
 	String getName();
 }
-
+```
 ## Paso 2: Basado esta inferencia simple, realizar un refinamiento ahora que los parámetros de cada método si están anotados
 
 Aquí, notemos que la llamada al método teach ahora recibe un argumento de faceta privada @StudentLearnFrom en lugar de @Student, por lo que es posible refinar la firma de ese método. Lo mismo para el método learnFrom. Para ello, recorremos el código y vamos viendo las llamadas a métodos:
@@ -132,6 +135,7 @@ Se genera la constraint (t2 <: @Student ^ @StudentLearnFrom).
 
 Luego, resolviendo las nuevas constraints, se tiene la versión final del código anotado:
 
+```javascript
 @Action Action foo(@StudentLearnFrom Student a, @TeacherTeach Teacher b) {
 	a.learnFrom(b);
 	return b.teach(a);
@@ -169,3 +173,4 @@ abstract class TeacherGetNameTeach {
 	String getName();
 	Action teach(Student a);
 }
+```
