@@ -28,6 +28,7 @@ class Teacher {
 (se omiten posiciones en memoria del store para simplificar)
 (me di cuenta que olvidé generar constraints para la expresión de retorno y el tipo de retorno del método, pero se entiende la idea)
 
+```
 Action foo(Student a, Teacher b) { ->
 
 M = {a = t1, b = t2}
@@ -77,7 +78,7 @@ return this.name; ->
 
 M = {}
 C = {(t7 <: {getName: t8 -> t9}), (t2 <: {teach: t5 -> t6}), (t1 <: {learnFrom: t3 -> t4})}
-
+```
 
 Resolviendo las constraints:
 
