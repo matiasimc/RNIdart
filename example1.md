@@ -124,11 +124,13 @@ abstract class TeacherGetName {
 ```
 ## Paso 2: Basado esta inferencia simple, realizar un refinamiento ahora que los parámetros de cada método si están anotados
 
-Aquí, notemos que la llamada al método teach ahora recibe un argumento de faceta privada @StudentLearnFrom en lugar de @Student, por lo que es posible refinar la firma de ese método. Lo mismo para el método learnFrom. Para ello, recorremos el código y vamos viendo las llamadas a métodos:
+Primero, notemos que aquí se está pasando como argumento a la llamada `b.teach(a);` una faceta más privada de la que pide el parámetro del método teach, lo cual es un flujo no permitido, por lo que es necesario cambiar la faceta del parámetro en el método foo.
+
+Lo mismo ocurre con la llamada al método learnFromn. En el cuerpo del método foo, se llama al método learnFrom pasándole como argumento uno de los parámetros. Luego, podemos refinar el parámetro b dependiendo de la faceta del método learnFrom. Para ello, recorremos el código y vamos viendo las llamadas a métodos:
 
 a.learnFrom(b); ->
 
-Se genera la constraint (t1 <: @TeacherGetName ^ @TeacherTeach), que corresponde al meet (join?) entre la faceta del parámetro de "learnFrom" inferida en el paso 1 y la faceta del argumento inferida en el paso 1.
+Se genera la constraint (t1 <: @TeacherGetName ^ @TeacherTeach), que corresponde al meet entre la faceta del parámetro de "learnFrom" inferida en el paso 1 y la faceta del argumento inferida en el paso 1.
 
 b.teach(a); ->
 
@@ -137,7 +139,7 @@ Se genera la constraint (t2 <: @Student ^ @StudentLearnFrom).
 Luego, resolviendo las nuevas constraints, se tiene la versión final del código anotado:
 
 ```javascript
-@Action Action foo(@StudentLearnFrom Student a, @TeacherTeach Teacher b) {
+@Action Action foo(@Student Student a, @TeacherTeachGetName Teacher b) {
 	a.learnFrom(b);
 	return b.teach(a);
 }
