@@ -124,7 +124,7 @@ abstract class TeacherGetName {
 ```
 ## Paso 2: Basado esta inferencia simple, realizar un refinamiento ahora que los parámetros de cada método si están anotados
 
-Primero, notemos que aquí se está pasando como argumento a la llamada `b.teach(a);` una faceta más privada de la que pide el parámetro del método teach, lo cual es un flujo no permitido, por lo que es necesario cambiar la faceta del parámetro en el método foo.
+Primero, notemos que aquí se está pasando como argumento a la llamada `b.teach(a)` una faceta más confidencial de la que pide el parámetro del método teach, lo cual es un flujo no permitido, por lo que es necesario cambiar la faceta del parámetro en el método foo.
 
 Lo mismo ocurre con la llamada al método learnFromn. En el cuerpo del método foo, se llama al método learnFrom pasándole como argumento uno de los parámetros. Luego, podemos refinar el parámetro b dependiendo de la faceta del método learnFrom. Para ello, recorremos el código y vamos viendo las llamadas a métodos:
 
