@@ -32,6 +32,7 @@ class TRNIDriver implements AnalysisDriverGeneric {
       SourceFactory sourceFactory, this._contentOverlay) {
     _sourceFactory = sourceFactory.clone();
     _scheduler.add(this);
+    new TRNIAnalyzer();
   }
 
   @override
