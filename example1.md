@@ -23,7 +23,7 @@ class Teacher {
 }
 ```
 
-## Paso 1: Generar constraints considerando públicos argumentos y tipos de retorno de métodos llamados en el cuerpo del método.
+## Paso 1: Generar constraints considerando públicos parámetros y tipos de retorno de métodos llamados en el cuerpo del método.
 
 (se omiten posiciones en memoria del store para simplificar)
 (me di cuenta que olvidé generar constraints para la expresión de retorno y el tipo de retorno del método, pero se entiende la idea)
@@ -122,11 +122,11 @@ abstract class TeacherGetName {
 	String getName();
 }
 ```
-## Paso 2: Basado esta inferencia simple, realizar un refinamiento ahora que los parámetros de cada método si están anotados
+## Paso 2: Basado en esta inferencia simple, realizar un refinamiento ahora que los parámetros de cada método si están anotados
 
 Primero, notemos que aquí se está pasando como argumento a la llamada `b.teach(a)` una faceta más confidencial de la que pide el parámetro del método teach, lo cual es un flujo no permitido, por lo que es necesario cambiar la faceta del parámetro en el método foo.
 
-Lo mismo ocurre con la llamada al método learnFromn. En el cuerpo del método foo, se llama al método learnFrom pasándole como argumento uno de los parámetros. Luego, podemos refinar el parámetro b dependiendo de la faceta del método learnFrom. Para ello, recorremos el código y vamos viendo las llamadas a métodos:
+Lo mismo ocurre con la llamada al método learnFrom. En el cuerpo del método foo, se llama al método learnFrom pasándole como argumento uno de los parámetros. Luego, podemos refinar el parámetro b dependiendo de la faceta del método learnFrom. Para ello, recorremos el código y vamos viendo las llamadas a métodos:
 
 a.learnFrom(b); ->
 
