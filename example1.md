@@ -139,13 +139,13 @@ Se genera la constraint (t2 <: @Student ^ @StudentLearnFrom).
 Luego, resolviendo las nuevas constraints, se tiene la versión final del código anotado:
 
 ```javascript
-@Action Action foo(@Student Student a, @TeacherTeachGetName Teacher b) {
+@Action Action foo(@Student Student a, @TeacherGetNameTeach Teacher b) {
 	a.learnFrom(b);
 	return b.teach(a);
 }
 
 class Student {
-	@low void learnFrom(@TeacherGetNameTeach Teacher b) {
+	@low void learnFrom(@TeacherGetName Teacher b) {
 		print("I'm learning from ${b.getName()}!");
 	}
 }
