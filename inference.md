@@ -74,12 +74,13 @@ Se muestran las reglas de inferencia y luego una explicación de cada una de ell
 ------------------------------------------------------------------
 Γ, M, pc, pt |- e1.m(e2) : t3 | {t1 <: [[m: t2 -> t3]]} U C2 U C1
 
+
 (return)
 
-Γ, M, pc, pt |- m : t1 | C1
-Γ, M, pc, pt |- e2 : t2 | C2
+Γ, M, pc, pt |- m : t1 -> t2 | C1
+Γ, M, pc, pt |- e2 : t3 | C2
 ------------------------------------------------------------
-Γ, M, pc, pt |- m(x)(e1;return e2) : t3 | {t1 = t2} U C2 U C1
+Γ, M, pc, pt |- m(x)(e1;return e2) : t | {t1 = t3} U C2 U C1
 
     
 (subtyping)
