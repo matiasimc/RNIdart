@@ -11,11 +11,12 @@ Primero, es necesario notar que la inferencia realizada en este trabajo no es "i
 La sintaxis del lenguaje fue adaptada de type-based relaxed noninterference, extendida con características de lenguajes imperativos, variables, asignaciones e instrucciones condicionales.
 
 ```
-e ::= v | e;e | e = e | if e then e else e | while e do e | e.m(e)
+e ::= v | e;e | e = e | if e then e else e | while e do e | e.m(e) | m(x)(e;return e)
 v ::= DV | x | [z: U => list(m(x)e)]
 U ::= O | TVar
 O ::= Obj(TVar). [list(m: U -> U)]
 x variable
+m method label
 U public facet
 DV Dart primitive value
 ```
@@ -73,6 +74,13 @@ Se muestran las reglas de inferencia y luego una explicación de cada una de ell
 ------------------------------------------------------------------
 Γ, M, pc, pt |- e1.m(e2) : t3 | {t1 <: [[m: t2 -> t3]]} U C2 U C1
 
+(return)
+
+Γ, M, pc, pt |- m : t1 | C1
+Γ, M, pc, pt |- e2 : t2 | C2
+------------------------------------------------------------
+Γ, M, pc, pt |- m(x)(e1;return e2) : t3 | {t1 = t2} U C2 U C1
+
     
 (subtyping)
 
@@ -87,4 +95,24 @@ Esta regla representa el comportamiento de una secuencia de instrucciones, indic
 
 ### Asignación (assn)
 
-Esta regla representa las constraints generadas en una instrucción de asignación. Por ejemplo:
+Esta regla representa la generación de constraints en una instrucción de asignación. Por ejemplo:
+
+### Condicional If (cond)
+
+Esta regla representa la generación de constraints en una instrucción condicional. Por ejemplo:
+
+### Loop While (loop)
+
+Esta regla representa la generación de constraints en una instrucción while. Por ejemplo:
+
+### Llamada a método (call)
+
+Esta regla representa la generación de constraints en una llamada a método. Por ejemplo:
+
+### Retorno de un método (return)
+
+Esta regla representa la generación de constraints para el tipo de retorno de un método. Por ejemplo:
+
+### Relación entre facetas (subtyping)
+
+Esta regla indica la relación de subtyping entre la faceta pública y la faceta privada, y en la práctica significa que si una variable de tipo no tiene ninguna constraint asociada, entonces el tipo inferido será @low. Por ejemplo:
