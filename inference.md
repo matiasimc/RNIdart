@@ -98,6 +98,20 @@ Esta regla representa el comportamiento de una secuencia de instrucciones, indic
 
 Esta regla representa la generación de constraints en una instrucción de asignación. Por ejemplo:
 
+```javascript
+@low void foo(@StringSplit String a) {
+   @T String b = a;
+}
+```
+
+Genera la constraint `{@T v @low <: @StringSplit}`. Aquí es importante notar que @low depende del contexto. En este caso, corresponde a @String.
+
+Dependiendo de los valores de @T, el programa puede estar mal tipado.
+
+- Si `@T = @High`, entonces `@High v @low = @High` y `{@High <: @StringSplit}` es una constraint inválida.
+- Si `@T <: @StringSplit`, entonces cualquier programa es válido.
+- Si `@T` es indeterminado o por inferir, la constraint es `@T <: @StringSplit`, que debe ser resuelta en conjunto con las demás constraint del programa. En este caso, lo correcto es inferir `@T = @StringSplit`.
+
 ### Condicional If (cond)
 
 Esta regla representa la generación de constraints en una instrucción condicional. Por ejemplo:
