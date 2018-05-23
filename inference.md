@@ -34,6 +34,9 @@ Por último, debido a las consideraciones iniciales, se agrega la faceta privada
 Se muestran las reglas de inferencia y luego una explicación de cada una de ellas, con ejemplos.
 
 ```
+v : join
+^ : meet
+
 (imp)
 
 Γ, M, pc, pt |- e1 : t1 | C1
@@ -71,8 +74,9 @@ Se muestran las reglas de inferencia y luego una explicación de cada una de ell
 
 Γ, M, pc, pt |- e1 : t1 | C1
 Γ, M, pc, pt |- e2 : t2 | C2
+Γ, M, pc, pt |- m : t4 -> t5 | {}
 ------------------------------------------------------------------
-Γ, M, pc, pt |- e1.m(e2) : t3 | {t1 <: [[m: t2 -> t3]]} U C2 U C1
+Γ, M, pc, pt |- e1.m(e2) : t5 | {t1 <: [[m: t2 ^ t4 -> t5]]} U C2 U C1
 
 
 (return)
@@ -80,7 +84,7 @@ Se muestran las reglas de inferencia y luego una explicación de cada una de ell
 Γ, M, pc, pt |- m : t1 -> t2 | C1
 Γ, M, pc, pt |- e2 : t3 | C2
 ------------------------------------------------------------
-Γ, M, pc, pt |- m(x)(e1;return e2) : t | {t1 = t3} U C2 U C1
+Γ, M, pc, pt |- m(x)(e1;return e2) : t | {t2 <: t3} U C2 U C1
 
     
 (subtyping)
@@ -114,20 +118,39 @@ Dependiendo de los valores de @T, el programa puede estar mal tipado.
 
 ### Condicional If (cond)
 
-Esta regla representa la generación de constraints en una instrucción condicional. Por ejemplo:
+Esta regla representa la generación de constraints en una instrucción condicional. Aquí la constraint relevante tiene que ver con el pc. En el cuerpo del 'then' y del 'else', la faceta del pc debe ser igual o más restringida que la faceta de la condición. Por ejemplo:
+
+```javascript
+@low void foo(@String String a) {
+   @BoolCompare bool cond = false;
+   if (cond) {
+      ...
+   }
+}
+```
+
+El pc dentro del cuerpo del if es `@BoolCompare`, por medio de la constraint `{@BoolCompare <: pc}`. Esto afectará, por ejemplo, a la instrucción de asignación dentro del cuerpo. Si asignamos `@String a = @StringLength b`, se generará la constraint `{@String v @BoolCompare <: @StringLength} = {@High <: @StringLength}`, lo cual es una constraint inválida.
 
 ### Loop While (loop)
 
-Esta regla representa la generación de constraints en una instrucción while. Por ejemplo:
+Esta regla representa la generación de constraints en una instrucción while. El mismo ejemplo anterior es válido, cambiando el keyword if por el keyword while.
 
 ### Llamada a método (call)
 
-Esta regla representa la generación de constraints en una llamada a método. Por ejemplo:
+Esta regla representa la generación de constraints en una llamada a método. Ver archivo example1.md.
 
 ### Retorno de un método (return)
 
-Esta regla representa la generación de constraints para el tipo de retorno de un método. Por ejemplo:
+Esta regla representa la generación de constraints para el tipo de retorno de un método. Ver archivo example1.md 
 
 ### Relación entre facetas (subtyping)
 
 Esta regla indica la relación de subtyping entre la faceta pública y la faceta privada, y en la práctica significa que si una variable de tipo no tiene ninguna constraint asociada, entonces el tipo inferido será @low. Por ejemplo:
+
+```javascript
+@low String foo(String a, String b) {
+   return a.substring("a");
+}
+```
+
+Como no hay ninguna constraint asociada a b, se usa la constraint "por defecto" `{@b <: @String}`.
