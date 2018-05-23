@@ -75,7 +75,7 @@ v : join
 Γ, M, pc, pt |- e1 : Obj(t1). [[m: t3 -> t4]] | C1
 Γ, M, pc, pt |- e2 : t2 | C2
 -----------------------------------------------------------------------------------
-Γ, M, pc, pt |- e1.m(e2) : t4 | {t2 <: t2 ^ t3} U {t1 <: [[m: t2 -> t4]]} U C2 U C1
+Γ, M, pc, pt |- e1.m(e2) : t4 | {t2 <: t2 ^ t3} U {t1 <: [[m: t3 -> t4]]} U C2 U C1
 
 
 (return)
@@ -136,7 +136,7 @@ Esta regla representa la generación de constraints en una instrucción while. E
 
 ### Llamada a método (call)
 
-Esta regla representa la generación de constraints en una llamada a método. Ver archivo example1.md.
+Esta regla representa la generación de constraints en una llamada a método. Esta regla es la mas complicada. Aquí, se asume que las facetas públicas del método m son dadas. Lo importante de notar es que la faceta del argumento de la llamada se "refina" con la faceta del parámetro del método m usando el operador meet. Para la inferencia completa se puede proceder en dos pasos. Ver archivo example1.md.
 
 ### Retorno de un método (return)
 
