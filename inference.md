@@ -11,7 +11,7 @@ Primero, es necesario notar que la inferencia realizada en este trabajo no es "i
 La sintaxis del lenguaje fue adaptada de type-based relaxed noninterference, extendida con características de lenguajes imperativos, variables, asignaciones e instrucciones condicionales.
 
 ```
-e ::= v | e;e | e = e | if e then e else e | while e do e | e.m(e) | m(x)(e;return e)
+e ::= v | e;e | e = e | if e then e else e | while e do e | e.m(e) | m(x)e
 v ::= DV | x | [z: U => list(m(x)e)]
 U ::= O | TVar
 O ::= Obj(TVar). [list(m: U -> U)]
@@ -69,21 +69,29 @@ v : join
 ---------------------------------------------------------------
 Γ, M, pc, pt |- while e1 do e2 : t1 v t2 | C2 U {t1 <: pc1} U C1
       
-      
-(call)
+
+(call 1)
+
+Γ, M, pc, pt |- e1 : Obj(t1). [[m: α -> β]] | C1, α,β undefined
+Γ, M, pc, pt |- e2 : t2 | C2
+---------------------------------------------------------------
+Γ, M, pc |- e1.m(e2) : ⊥ | {t1 <: [[m: ⊥ -> ⊥]]} U C2 U C1
+
+
+(call 2)
 
 Γ, M, pc, pt |- e1 : Obj(t1). [[m: t3 -> t4]] | C1
 Γ, M, pc, pt |- e2 : t2 | C2
------------------------------------------------------------------------------------
-Γ, M, pc, pt |- e1.m(e2) : t4 | {t2 <: t2 ^ t3} U {t1 <: [[m: t3 -> t4]]} U C2 U C1
+------------------------------------------------------------------------------
+Γ, M, pc, pt |- e1.m(e2) : t4 | {t2 <: t3} U {t1 <: [[m: t3 -> t4]]} U C2 U C1
 
 
-(return)
+(method)
 
 Γ, M, pc, pt |- m : t1 -> t2 | C1
-Γ, M, pc, pt |- e2 : t3 | C2
+Γ, M, pc, pt |- e : t3 | C2
 ------------------------------------------------------------
-Γ, M, pc, pt |- m(x)(e1;return e2) : t | {t2 <: t3} U C2 U C1
+Γ, M, pc, pt |- m(x)e : t3 | {t2 <: t3} U C2 U C1
 
     
 (subtyping)
