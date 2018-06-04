@@ -17,20 +17,29 @@ class AnnotationLookupCUVisitor extends SimpleAstVisitor {
   @override
   visitClassDeclaration(ClassDeclaration node) {
     log.shout("Visiting class ${node.name}");
-    store.addObjectTypeVariable(node.name.toString());
-    node.members.accept(new AnnotationLookupClassVisitor(this.store));
+    ObjectType t = store.addObjectTypeVariable(node.name.toString());
+    node.members.accept(new AnnotationLookupClassVisitor(t, this.store));
   }
 }
 
 class AnnotationLookupClassVisitor extends SimpleAstVisitor {
   final Logger log = new Logger("AnnotationLookupClassVisitor");
+  ObjectType t;
   Store store;
 
-  AnnotationLookupClassVisitor(this.store);
+  AnnotationLookupClassVisitor(this.t, this.store);
 
   @override
   visitMethodDeclaration(MethodDeclaration node) {
-    // TODO generar TVar para todos los parametros sin @declared
+    // TODO generar TVar para todos los parametros y retorno sin @declared
+    List<IType> left = node.parameters.parameters.map((p) {
+      // if p is declared, object type of declared type
+      // else, new type variable
+      return store.getTypeVariable();
+    }).toList();
+    // for the right side, the same as the left
+    IType right = store.getTypeVariable();
+    t.addMember(node.name.toString(), new ArrowType(left, right));
   }
 
   @override

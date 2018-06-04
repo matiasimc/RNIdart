@@ -30,8 +30,14 @@ class Store {
     }
   }
 
-  void addObjectTypeVariable(String v) {
+  ObjectType addObjectTypeVariable(String v) {
+    ObjectType t = new ObjectType();
     variables[v] = this.storeIndex++;
-    types[variables[v]] = new ObjectType();
+    types[variables[v]] = t;
+    return t;
+  }
+
+  TVar getTypeVariable() {
+    return new TVar(varIndex++);
   }
 }
