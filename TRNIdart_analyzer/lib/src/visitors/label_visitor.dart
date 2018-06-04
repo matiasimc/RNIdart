@@ -32,7 +32,7 @@ class LabelVisitor extends RecursiveAstVisitor {
 
   @override
   visitFunctionDeclaration(FunctionDeclaration node) {
-    log.shout("Visit function declaration ${node.element}\n");
+    log.shout("Visit function declaration ${node.metadata.first.arguments.arguments.first}\n");
     bool hasInterface = node.metadata.map((a) => a.name == "interface").isNotEmpty;
     if (!hasInterface) errorCollector.errors.add(
         new UndefinedInterfaceError(node.element.source, node.offset, node.length, null, node.toSource())

@@ -29,5 +29,7 @@ export 'src/inference/AbstractClass.dart';
 export 'src/inference/NodeGenerator.dart';
 export 'src/errors/collector.dart';
 export 'src/errors/errors.dart';
+export 'src/inference/types.dart';
+export 'src/inference/store.dart';
 
 // TODO: Export any libraries intended for clients of this package.
