@@ -26,6 +26,21 @@ class SubtypingConstraint extends Constraint {
   String toString() => "${left} <: ${right}";
 }
 
+class DeclaredConstraint extends Constraint {
+  IType left;
+  DeclaredType right;
+
+  DeclaredConstraint(this.left, this.right);
+
+  @override
+  bool isResolved() => true;
+
+  @override
+  bool isEmpty() => false;
+
+  String toString() => "${left} = ${right}";
+}
+
 class EmptyConstraint extends Constraint {
   @override
   bool isResolved() => true;

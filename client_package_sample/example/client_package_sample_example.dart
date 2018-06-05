@@ -8,7 +8,7 @@ class Foo {
 }
 
 class Bar {
-  @declared("public") void bar(@declared("asd") String a) {
+  void bar(@declared("asd") String a) {
     a.substring(0).toLowerCase();
   }
 }
