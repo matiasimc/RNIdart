@@ -1,12 +1,14 @@
 import 'package:client_package_sample/client_package_sample.dart';
 import 'package:TRNIdart/src/public_interface.dart';
 
-@declared("public") void foo(@declared("asd") String a, String b) {
-  int c = d*4;
-  String x = "asd";
+class Foo {
+  @declared("public") void foo(@declared("asd") String a, Bar b) {
+    b.bar(a);
+  }
 }
 
-@declared("public") main() {
-  @declared("private") Awesome awesome = new Awesome();
-  print('awesomememe: ${awesome.isAwesome}');
+class Bar {
+  @declared("public") void bar(@declared("asd") String a) {
+    a.substring(0).toLowerCase();
+  }
 }

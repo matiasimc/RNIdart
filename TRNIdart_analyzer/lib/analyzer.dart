@@ -54,16 +54,19 @@ class TRNIAnalyzer {
   void _setUpLogger() {
     File f = new File("TRNI-log.txt");
     f.createSync();
-    f.writeAsStringSync("\n==== Analysis starts on ${new DateTime.now().toIso8601String()} ====\n\n", mode: FileMode.APPEND);
+    f.writeAsStringSync("\n\n==== Analysis starts on ${new DateTime.now().toIso8601String()} ====\n\n", mode: FileMode.APPEND);
     Logger.root.level = Level.ALL;
     Logger.root.onRecord.listen((LogRecord rec) {
-      f.writeAsStringSync('${rec.level.name}: ${rec.time} ${rec.loggerName} -> ${rec.message}', mode: FileMode.APPEND);
+      f.writeAsStringSync('${rec.level.name}: ${rec.time} ${rec.loggerName} -> ${rec.message}\n', mode: FileMode.APPEND);
     });
   }
 
   static List<AnalysisError> computeErrors(CompilationUnit resolvedUnit) {
     Logger.root.shout("Analysis on path: ${resolvedUnit.element.source.uri.path}\n");
-
+    var visitor = new CompilationUnitVisitor();
+    resolvedUnit.accept(visitor);
+    Logger.root.shout("Store: \n${visitor.store.printStore()}");
+    Logger.root.shout("Constraint Set: \n${visitor.cs.constraints}");
     ErrorCollector errorCollector = new ErrorCollector();
     resolvedUnit.accept(new LabelVisitor(errorCollector));
     return errorCollector.errors;

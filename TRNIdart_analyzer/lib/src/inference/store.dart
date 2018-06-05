@@ -4,7 +4,7 @@ class Store {
   /*
   Map relating a variable to a virtual memory location
    */
-  Map<String, int> variables;
+  Map<Element, int> elements;
 
   /*
   Map relating a virtual memory location to a type
@@ -14,30 +14,45 @@ class Store {
   int storeIndex, varIndex;
 
   Store() {
-    this.variables = new Map<String, int>();
+    this.elements = new Map<Element, int>();
     this.types = new Map<int, IType>();
     this.storeIndex = 0;
     this.varIndex = 0;
   }
 
-  void addVariable(String v, [IType declaredType]) {
-    if (!this.variables.containsKey(v)) variables[v] = this.storeIndex++;
+  void addElement(Element v, [IType declaredType]) {
+    if (!this.elements.containsKey(v)) elements[v] = this.storeIndex++;
     if (declaredType != null) {
-      types[variables[v]] = declaredType;
+      types[elements[v]] = declaredType;
     }
     else {
-      types[variables[v]] = new TVar(varIndex++);
+      types[elements[v]] = new TVar(varIndex++);
     }
-  }
-
-  ObjectType addObjectTypeVariable(String v) {
-    ObjectType t = new ObjectType();
-    variables[v] = this.storeIndex++;
-    types[variables[v]] = t;
-    return t;
   }
 
   TVar getTypeVariable() {
     return new TVar(varIndex++);
+  }
+
+  bool hasElement(Element e) {
+    return this.elements.containsKey(e);
+  }
+
+  IType getTypeOrVariable(Element e) {
+    if (!this.hasElement(e)) this.addElement(e);
+    return types[elements[e]];
+  }
+
+  String printStore() {
+    String ret = "";
+    this.elements.forEach((e,i) {
+      ret += "${e.toString()} -> $i\n";
+    });
+    ret += "\n";
+    this.types.forEach((i,t) {
+      ret += "$i -> $t\n";
+    });
+
+    return ret;
   }
 }

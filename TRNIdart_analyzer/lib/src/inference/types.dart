@@ -9,16 +9,18 @@ class TVar extends IType {
   bool isConcrete() => false;
 
   TVar(this.index);
+
+  String toString() => "TVar(${this.index})";
 }
 
 class ObjectType extends IType {
   /*
   A map between a label and a type (usually arrow type)
    */
-  Map<String, IType> members;
+  Map<String, ArrowType> members;
 
   ObjectType([this.members]) {
-    if (this.members == null) this.members = new Map<String, IType>();
+    if (this.members == null) this.members = new Map<String, ArrowType>();
   }
 
   @override
@@ -32,6 +34,8 @@ class ObjectType extends IType {
   void addMember(String label, IType type) {
     this.members[label] = type;
   }
+
+  String toString() => "${members}";
 }
 
 class ArrowType extends IType {
@@ -48,14 +52,34 @@ class ArrowType extends IType {
     }
     return true;
   }
+
+  String toString() => "${leftSide} -> ${rightSide}";
+}
+
+/*
+Should be removed when the interface parser is done. ObjectType should be used
+instead.
+ */
+class DeclaredType extends IType {
+  String name;
+
+  DeclaredType(this.name);
+
+  bool isConcrete() => true;
+
+  String toString() => this.name;
 }
 
 class Top extends IType {
   @override
   bool isConcrete() => true;
+
+  String toString() => "Top";
 }
 
 class Bot extends IType {
   @override
   bool isConcrete() => true;
+
+  String toString() => "Bot";
 }

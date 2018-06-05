@@ -1,4 +1,5 @@
 import 'package:TRNIdart_analyzer/TRNIdart_analyzer.dart';
+import 'dart:collection';
 
 abstract class Constraint {
   /*
@@ -21,6 +22,8 @@ class SubtypingConstraint extends Constraint {
 
   @override
   bool isEmpty() => false;
+
+  String toString() => "${left} <: ${right}";
 }
 
 class EmptyConstraint extends Constraint {
@@ -32,9 +35,14 @@ class EmptyConstraint extends Constraint {
 }
 
 class ConstraintSet {
-  Constraint head;
-  ConstraintSet tail;
+  List<Constraint> constraints;
 
-  ConstraintSet(this.head, this.tail);
+  ConstraintSet() {
+    this.constraints = new List<Constraint>();
+  }
+
+  void addConstraint(Constraint c) {
+    this.constraints.add(c);
+  }
 
 }
