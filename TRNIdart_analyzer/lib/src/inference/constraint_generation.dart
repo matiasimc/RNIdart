@@ -180,6 +180,7 @@ class MethodBodyVisitor extends RecursiveAstVisitor {
     if (e is Identifier) element = e.bestElement;
     else if (e is InstanceCreationExpression) element = e.staticElement;
     else if (e is MethodInvocation) element = e.staticInvokeType.element;
+    else if (e is PrefixedIdentifier) element = e.bestElement;
     this.cs.addConstraint(new SubtypingConstraint(this.store.getTypeOrVariable(element, new Bot()), this.returnType));
     return super.visitReturnStatement(node);
   }
