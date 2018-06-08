@@ -4,11 +4,12 @@ abstract class  IType {
 
 class TVar extends IType {
   int index;
+  IType defaultType;
 
   @override
   bool isConcrete() => false;
 
-  TVar(this.index);
+  TVar(this.index, this.defaultType);
 
   String toString() => "TVar(${this.index})";
 }

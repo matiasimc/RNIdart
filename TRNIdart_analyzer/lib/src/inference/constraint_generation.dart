@@ -43,13 +43,13 @@ class ClassMemberVisitor extends SimpleAstVisitor {
     List<IType> left = node.parameters.parameters.map((p) {
       Annotation a = AnnotationHelper.getDeclaredForParameter(p);
       if (a == null) {
-        IType tvar = store.getTypeOrVariable(p.element);
+        IType tvar = store.getTypeOrVariable(p.element, new Top());
         return tvar;
       }
       else {
         // TODO generate object type from declared
         IType t = new DeclaredType(a.arguments.arguments.first.toString());
-        IType tvar = this.store.getTypeOrVariable(p.element);
+        IType tvar = this.store.getTypeOrVariable(p.element, new Top());
         this.cs.addConstraint(new DeclaredConstraint(tvar, t));
         return tvar;
       }
@@ -61,7 +61,7 @@ class ClassMemberVisitor extends SimpleAstVisitor {
     Annotation a = AnnotationHelper.getDeclared(node);
     IType right = a != null ?
       new DeclaredType(a.arguments.arguments.first.toString()) :
-      store.getTypeVariable();
+      store.getTypeVariable(new Bot());
     IType t = new ArrowType(left, right);
     /*
     If the store doesn't has the method element, we add it. Else, we create the
@@ -69,15 +69,15 @@ class ClassMemberVisitor extends SimpleAstVisitor {
     type.
      */
     if (!store.hasElement(node.element)) {
-      store.addElement(node.element, t);
+      store.addElement(node.element, new ArrowType([new Top()], new Bot()), t);
     }
     else {
-      cs.addConstraint(new SubtypingConstraint(store.getTypeOrVariable(node.element), t));
+      cs.addConstraint(new SubtypingConstraint(store.getTypeOrVariable(node.element, new ArrowType([new Top()], new Bot())), t));
     }
     /*
     Finally, we process the method body.
      */
-    node.body.accept(new MethodBodyVisitor(this.store, this.cs));
+    node.body.accept(new MethodBodyVisitor(this.store, this.cs, right));
   }
 
   @override
@@ -87,8 +87,8 @@ class ClassMemberVisitor extends SimpleAstVisitor {
     Annotation a = AnnotationHelper.getDeclared(node);
     IType t = a != null ?
       new DeclaredType(a.arguments.arguments.first.toString()) :
-      store.getTypeVariable();
-    store.addElement(node.element, t);
+      store.getTypeVariable(new Bot());
+    store.addElement(node.element, new Bot(), t);
   }
 
   @override
@@ -98,15 +98,15 @@ class ClassMemberVisitor extends SimpleAstVisitor {
       List<IType> left = node.parameters.parameters.map((p) {
         Annotation a = AnnotationHelper.getDeclaredForParameter(p);
         if (a == null)
-          return store.getTypeVariable();
+          return store.getTypeVariable(new Top());
         else
           return new DeclaredType(a.arguments.arguments.first.toString());
       }).toList();
       Annotation a = AnnotationHelper.getDeclared(node);
       IType right = a != null ?
       new DeclaredType(a.arguments.arguments.first.toString()) :
-      store.getTypeVariable();
-      store.addElement(node.element, new ArrowType(left, right));
+      store.getTypeVariable(new Bot());
+      store.addElement(node.element, new ArrowType([new Top()], new Bot()), new ArrowType(left, right));
     }
   }
 }
@@ -115,9 +115,10 @@ class MethodBodyVisitor extends RecursiveAstVisitor {
   final Logger log = new Logger("MethodBodyVisitor");
   Store store;
   ConstraintSet cs;
+  IType returnType;
   IType chainedCallParentType;
 
-  MethodBodyVisitor(this.store, this.cs);
+  MethodBodyVisitor(this.store, this.cs, this.returnType);
 
   @override
   visitMethodInvocation(MethodInvocation node) {
@@ -129,9 +130,9 @@ class MethodBodyVisitor extends RecursiveAstVisitor {
     AstNode target = node.target;
     IType targetType;
     if (target is SimpleIdentifier) {
-      targetType = this.store.getTypeOrVariable(target.bestElement);
+      targetType = this.store.getTypeOrVariable(target.bestElement, new Bot());
     }
-    if (targetType == null) targetType = this.store.getTypeVariable();
+    if (targetType == null) targetType = this.store.getTypeVariable(new Bot());
     /*
     Now we check the method signature. If the method is from the dart core
     library, we generate type variables and default constraints. Else, we
@@ -139,17 +140,17 @@ class MethodBodyVisitor extends RecursiveAstVisitor {
      */
     ArrowType methodSignature;
     if (node.staticInvokeType.element.library.isDartCore) {
-      IType tr = this.store.getTypeVariable();
+      IType tr = this.store.getTypeVariable(new Bot());
       this.cs.addConstraint(new SubtypingConstraint(new Bot(), tr));
       methodSignature = new ArrowType(node.argumentList.arguments.map((a) {
-        IType ta = this.store.getTypeVariable();
+        IType ta = this.store.getTypeVariable(new Top());
         this.cs.addConstraint(new SubtypingConstraint(ta, new Top()));
         return ta;
       }).toList(), tr);
     }
     else {
       methodSignature = this.store.getTypeOrVariable(
-          node.staticInvokeType.element);
+          node.staticInvokeType.element, new ArrowType([new Top()], new Bot()));
     }
     /*
     Now we generate the object type and the constraint for the target, and
@@ -170,5 +171,16 @@ class MethodBodyVisitor extends RecursiveAstVisitor {
      */
     chainedCallParentType = targetType;
     return super.visitMethodInvocation(node);
+  }
+
+  @override
+  visitReturnStatement(ReturnStatement node) {
+    Expression e = node.expression;
+    Element element;
+    if (e is Identifier) element = e.bestElement;
+    else if (e is InstanceCreationExpression) element = e.staticElement;
+    else if (e is MethodInvocation) element = e.staticInvokeType.element;
+    this.cs.addConstraint(new SubtypingConstraint(this.store.getTypeOrVariable(element, new Bot()), this.returnType));
+    return super.visitReturnStatement(node);
   }
 }

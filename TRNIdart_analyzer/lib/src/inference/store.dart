@@ -20,26 +20,27 @@ class Store {
     this.varIndex = 0;
   }
 
-  void addElement(Element v, [IType declaredType]) {
+  void addElement(Element v, IType defaultType, [IType declaredType]) {
     if (!this.elements.containsKey(v)) elements[v] = this.storeIndex++;
     if (declaredType != null) {
       types[elements[v]] = declaredType;
     }
     else {
-      types[elements[v]] = new TVar(varIndex++);
+      types[elements[v]] = new TVar(varIndex++, defaultType);
     }
   }
 
-  TVar getTypeVariable() {
-    return new TVar(varIndex++);
+  TVar getTypeVariable(IType defaultType) {
+    return new TVar(varIndex++, defaultType);
   }
 
   bool hasElement(Element e) {
     return this.elements.containsKey(e);
   }
 
-  IType getTypeOrVariable(Element e) {
-    if (!this.hasElement(e)) this.addElement(e);
+  IType getTypeOrVariable(Element e, IType defaultType) {
+    if (e == null) return this.getTypeVariable(defaultType);
+    if (!this.hasElement(e)) this.addElement(e, defaultType);
     return types[elements[e]];
   }
 
