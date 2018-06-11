@@ -23,7 +23,7 @@ class TRNIFixContributor implements FixContributor {
     for (AnalysisError error in request.errorsToFix) {
       SourceChange change = new SourceChange("Add dummy interface");
       SourceFileEdit se = new SourceFileEdit(this.path, error.source.contents.modificationTime);
-      se.add(new SourceEdit(error.offset, 0, "@interface(\"DummyClass\") "));
+      se.add(new SourceEdit(error.offset, 0, "@declared(\"DummyClass\") "));
       //se.add(new SourceEdit(error.source.contents.data.length, 0, "abstract class DummyClass {}"));
       change.addFileEdit(se);
       collector.addFix(error, new PrioritizedSourceChange(100, change));

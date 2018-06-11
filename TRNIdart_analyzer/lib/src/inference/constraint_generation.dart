@@ -40,16 +40,16 @@ class ClassMemberVisitor extends SimpleAstVisitor {
     generate a DeclaredConstraint for the type variable and the declared type. Else,
     we just add the type variable.
      */
-    List<IType> left = node.parameters.parameters.map((p) {
-      Annotation a = AnnotationHelper.getDeclaredForParameter(p);
+    List<IType> left = node.element.parameters.map((p) {
+      Annotation a = AnnotationHelper.getDeclaredForParameter(p.computeNode());
       if (a == null) {
-        IType tvar = store.getTypeOrVariable(p.element, new Top());
+        IType tvar = store.getTypeOrVariable(p, new Top());
         return tvar;
       }
       else {
         // TODO generate object type from declared
         IType t = new DeclaredType(a.arguments.arguments.first.toString());
-        IType tvar = this.store.getTypeOrVariable(p.element, new Top());
+        IType tvar = this.store.getTypeOrVariable(p, new Top());
         this.cs.addConstraint(new DeclaredConstraint(tvar, t));
         return tvar;
       }
