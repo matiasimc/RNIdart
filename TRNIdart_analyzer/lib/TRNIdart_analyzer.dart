@@ -11,7 +11,6 @@ export 'src/visitors/label_visitor.dart';
 export 'package:analyzer/analyzer.dart';
 export 'package:analyzer/dart/element/element.dart';
 export 'package:analyzer/src/dart/ast/ast.dart';
-export 'src/inference/Inference.dart';
 export 'src/inference/AbstractClass.dart';
 export 'src/inference/NodeGenerator.dart';
 export 'src/errors/collector.dart';

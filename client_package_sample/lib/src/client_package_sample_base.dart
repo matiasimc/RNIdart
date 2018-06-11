@@ -4,5 +4,5 @@ import 'package:TRNIdart/TRNIdart.dart';
 
 /// Checks if you are awesome. Spoiler: you are.
 class Awesome {
-  @interface("") bool get isAwesome => true;
+  @declared("") bool get isAwesome => true;
 }
