@@ -1,19 +1,39 @@
 import 'package:TRNIdart_analyzer/TRNIdart_analyzer.dart';
+import 'dart:io';
+import 'package:path/path.dart' as path;
 
 class CompilationUnitVisitor extends SimpleAstVisitor {
   final Logger log = new Logger("CompilationUnitVisitor");
   Store store;
   ConstraintSet cs;
-  IType chainedCallParentType;
+  String secFile;
 
-  CompilationUnitVisitor() {
+  CompilationUnitVisitor(this.secFile) {
     this.store = new Store();
     this.cs = new ConstraintSet();
   }
 
   @override
   visitCompilationUnit(CompilationUnit node) {
-    node.visitChildren(this);
+    bool hasTarget = false;
+    node.directives.forEach((d) {
+      if (d is ImportDirective) {
+        String imp = d.uri.toString();
+        if (imp.contains("sec.dart")) {
+          hasTarget = true;
+        }
+      }
+    });
+    if (!hasTarget) {
+      File f = new File(node.element.librarySource.toString());
+      String oldContents = f.readAsStringSync();
+      String relativePath = path.relative(this.secFile, from: f.path.replaceAll("/"+node.element.librarySource.shortName, ""));
+      String importDirective = "import '${relativePath}';\n";
+      String newContents = importDirective+oldContents;
+      f.writeAsStringSync(newContents);
+    }
+
+    node.declarations.accept(this);
   }
 
   @override
@@ -22,6 +42,24 @@ class CompilationUnitVisitor extends SimpleAstVisitor {
     node.members.accept(new ClassMemberVisitor(this.store, this.cs));
   }
 
+}
+
+class ImportVisitor extends RecursiveAstVisitor {
+  final Logger log = new Logger("ImportVisitor");
+  bool hasTarget;
+
+  ImportVisitor() {
+    this.hasTarget = false;
+  }
+
+  @override
+  visitImportDirective(ImportDirective node) {
+    String imp = node.uri.toString();
+    if (imp.contains("sec.dart")) {
+      this.hasTarget = true;
+    }
+    else return super.visitImportDirective(node);
+  }
 }
 
 

@@ -2,12 +2,20 @@
 Represent the declared interface of a public facet
  */
 class declared {
-  const declared(String s);
+  const declared(Type s);
 }
 
 /**
     Represent the inferred interface of a public facet
  */
 class inferred {
-  const inferred(String s);
+  const inferred(Type s);
+}
+
+abstract class Top {
+
+}
+
+abstract class Bot {
+
 }
