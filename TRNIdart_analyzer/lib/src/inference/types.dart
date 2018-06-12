@@ -57,20 +57,6 @@ class ArrowType extends IType {
   String toString() => "${leftSide} -> ${rightSide}";
 }
 
-/*
-Should be removed when the interface parser is done. ObjectType should be used
-instead.
- */
-class DeclaredType extends IType {
-  String name;
-
-  DeclaredType(this.name);
-
-  bool isConcrete() => true;
-
-  String toString() => this.name;
-}
-
 class Top extends IType {
   @override
   bool isConcrete() => true;

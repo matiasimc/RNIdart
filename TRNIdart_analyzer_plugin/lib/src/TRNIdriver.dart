@@ -87,6 +87,9 @@ class TRNIDriver implements AnalysisDriverGeneric {
       _filesToAnalyze.remove(path);
       return;
     }
+    else {
+      TRNIAnalyzer.reset();
+    }
     return;
   }
 

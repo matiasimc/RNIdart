@@ -6,16 +6,13 @@ class CompilationUnitVisitor extends SimpleAstVisitor {
   final Logger log = new Logger("CompilationUnitVisitor");
   Store store;
   ConstraintSet cs;
-  String secFile;
+  Map<String, IType> declaredStore;
 
-  CompilationUnitVisitor(this.secFile) {
-    this.store = new Store();
-    this.cs = new ConstraintSet();
-  }
+  CompilationUnitVisitor(this.store, this.cs, this.declaredStore);
 
   @override
   visitCompilationUnit(CompilationUnit node) {
-    bool hasTarget = false;
+/*    bool hasTarget = false;
     node.directives.forEach((d) {
       if (d is ImportDirective) {
         String imp = d.uri.toString();
@@ -31,15 +28,25 @@ class CompilationUnitVisitor extends SimpleAstVisitor {
       String importDirective = "import '${relativePath}';\n";
       String newContents = importDirective+oldContents;
       f.writeAsStringSync(newContents);
-    }
+    }*/
 
     node.declarations.accept(this);
   }
 
   @override
   visitClassDeclaration(ClassDeclaration node) {
+    if (node.isAbstract) {
+      DeclaredParser parser = new DeclaredParser();
+      node.accept(parser);
+      if (this.declaredStore.containsKey(node.element.name)) {
+        this.cs.addConstraint(new DeclaredConstraint(this.declaredStore[node.element.name], parser.getType()));
+      }
+      else {
+        this.declaredStore[node.element.name] = parser.getType();
+      }
+    }
     log.shout("Visiting class ${node.name}");
-    node.members.accept(new ClassMemberVisitor(this.store, this.cs));
+    node.members.accept(new ClassMemberVisitor(this.store, this.cs, this.declaredStore));
   }
 
 }
@@ -67,8 +74,9 @@ class ClassMemberVisitor extends SimpleAstVisitor {
   final Logger log = new Logger("ClassMemberVisitor");
   Store store;
   ConstraintSet cs;
+  Map<String, IType> declaredStore;
 
-  ClassMemberVisitor(this.store, this.cs);
+  ClassMemberVisitor(this.store, this.cs, this.declaredStore);
 
   @override
   visitMethodDeclaration(MethodDeclaration node) {
@@ -85,21 +93,44 @@ class ClassMemberVisitor extends SimpleAstVisitor {
         return tvar;
       }
       else {
-        // TODO generate object type from declared
-        IType t = new DeclaredType(a.arguments.arguments.first.toString());
-        IType tvar = this.store.getTypeOrVariable(p, new Top());
-        this.cs.addConstraint(new DeclaredConstraint(tvar, t));
-        return tvar;
+        String facet = a.arguments.arguments.first.toString().replaceAll("\"", "");
+        if (this.declaredStore.containsKey(facet)) {
+          IType t = this.declaredStore[facet];
+          IType tvar = this.store.getTypeOrVariable(p, new Top());
+          this.cs.addConstraint(new DeclaredConstraint(tvar, t));
+          return tvar;
+        }
+        else {
+          IType tvar1 = this.store.getTypeVariable(new Top());
+          this.declaredStore[facet] = tvar1;
+          IType tvar2 = this.store.getTypeOrVariable(p, new Top());
+          this.cs.addConstraint(new DeclaredConstraint(tvar2, tvar1));
+          return tvar2;
+        }
       }
     }).toList();
     /*
     The same goes for the return type. Then, we create the ArrowType.
-    TODO if the method element exists in the store, we should create a constraint for the return type
      */
     Annotation a = AnnotationHelper.getDeclared(node);
-    IType right = a != null ?
-      new DeclaredType(a.arguments.arguments.first.toString()) :
-      store.getTypeVariable(new Bot());
+    IType right;
+    if (a != null) {
+      String facet = a.arguments.arguments.first.toString().replaceAll("\"", "");
+      if (this.declaredStore.containsKey(facet)) {
+        IType t = this.declaredStore[facet];
+        IType tvar = this.store.getTypeVariable(new Bot());
+        this.cs.addConstraint(new DeclaredConstraint(tvar, t));
+        right = tvar;
+      }
+      else {
+        IType tvar1 = this.store.getTypeVariable(new Bot());
+        this.declaredStore[facet] = tvar1;
+        IType tvar2 = this.store.getTypeVariable(new Bot());
+        this.cs.addConstraint(new DeclaredConstraint(tvar2, tvar1));
+        right = tvar2;
+      }
+    }
+    else right = store.getTypeVariable(new Bot());
     IType t = new ArrowType(left, right);
     /*
     If the store doesn't has the method element, we add it. Else, we create the
@@ -123,27 +154,73 @@ class ClassMemberVisitor extends SimpleAstVisitor {
     log.shout("Visiting field(s) ${node.fields.variables.join(',')}");
     if (store.hasElement(node.element)) return;
     Annotation a = AnnotationHelper.getDeclared(node);
-    IType t = a != null ?
-      new DeclaredType(a.arguments.arguments.first.toString()) :
-      store.getTypeVariable(new Bot());
-    store.addElement(node.element, new Bot(), t);
+    IType right;
+    if (a != null) {
+      String facet = a.arguments.arguments.first.toString().replaceAll("\"", "");
+      if (this.declaredStore.containsKey(facet)) {
+        IType t = this.declaredStore[facet];
+        IType tvar = this.store.getTypeVariable(new Bot());
+        this.cs.addConstraint(new DeclaredConstraint(tvar, t));
+        right = tvar;
+      }
+      else {
+        IType tvar1 = this.store.getTypeVariable(new Bot());
+        this.declaredStore[facet] = tvar1;
+        IType tvar2 = this.store.getTypeVariable(new Bot());
+        this.cs.addConstraint(new DeclaredConstraint(tvar2, tvar1));
+        right = tvar2;
+      }
+    }
+    else right = store.getTypeVariable(new Bot());
+    store.addElement(node.element, new Bot(), right);
   }
 
   @override
   visitConstructorDeclaration(ConstructorDeclaration node) {
     log.shout("Visiting constructor");
     if (!store.hasElement(node.element)) {
-      List<IType> left = node.parameters.parameters.map((p) {
-        Annotation a = AnnotationHelper.getDeclaredForParameter(p);
-        if (a == null)
-          return store.getTypeVariable(new Top());
-        else
-          return new DeclaredType(a.arguments.arguments.first.toString());
+      List<IType> left = node.element.parameters.map((p) {
+        Annotation a = AnnotationHelper.getDeclaredForParameter(p.computeNode());
+        if (a == null) {
+          IType tvar = store.getTypeOrVariable(p, new Top());
+          return tvar;
+        }
+        else {
+          String facet = a.arguments.arguments.first.toString().replaceAll("\"", "");
+          if (this.declaredStore.containsKey(facet)) {
+            IType t = this.declaredStore[facet];
+            IType tvar = this.store.getTypeOrVariable(p, new Top());
+            this.cs.addConstraint(new DeclaredConstraint(tvar, t));
+            return tvar;
+          }
+          else {
+            IType tvar1 = this.store.getTypeVariable(new Top());
+            this.declaredStore[facet] = tvar1;
+            IType tvar2 = this.store.getTypeOrVariable(p, new Top());
+            this.cs.addConstraint(new DeclaredConstraint(tvar2, tvar1));
+            return tvar2;
+          }
+        }
       }).toList();
       Annotation a = AnnotationHelper.getDeclared(node);
-      IType right = a != null ?
-      new DeclaredType(a.arguments.arguments.first.toString()) :
-      store.getTypeVariable(new Bot());
+      IType right;
+      if (a != null) {
+        String facet = a.arguments.arguments.first.toString().replaceAll("\"", "");
+        if (this.declaredStore.containsKey(facet)) {
+          IType t = this.declaredStore[facet];
+          IType tvar = this.store.getTypeVariable(new Bot());
+          this.cs.addConstraint(new DeclaredConstraint(tvar, t));
+          right = tvar;
+        }
+        else {
+          IType tvar1 = this.store.getTypeVariable(new Bot());
+          this.declaredStore[facet] = tvar1;
+          IType tvar2 = this.store.getTypeVariable(new Bot());
+          this.cs.addConstraint(new DeclaredConstraint(tvar2, tvar1));
+          right = tvar2;
+        }
+      }
+      else right = store.getTypeVariable(new Bot());
       store.addElement(node.element, new ArrowType([new Top()], new Bot()), new ArrowType(left, right));
     }
   }
@@ -179,10 +256,8 @@ class MethodBodyVisitor extends RecursiveAstVisitor {
     ArrowType methodSignature;
     if (node.staticInvokeType.element.library.isDartCore) {
       IType tr = this.store.getTypeVariable(new Bot());
-      this.cs.addConstraint(new SubtypingConstraint(new Bot(), tr));
       methodSignature = new ArrowType(node.argumentList.arguments.map((a) {
         IType ta = this.store.getTypeVariable(new Top());
-        this.cs.addConstraint(new SubtypingConstraint(ta, new Top()));
         return ta;
       }).toList(), tr);
     }
@@ -216,10 +291,20 @@ class MethodBodyVisitor extends RecursiveAstVisitor {
     Expression e = node.expression;
     Element element;
     if (e is Identifier) element = e.bestElement;
-    else if (e is InstanceCreationExpression) element = e.staticElement;
-    else if (e is MethodInvocation) element = e.staticInvokeType.element;
-    else if (e is PrefixedIdentifier) element = e.bestElement;
-    this.cs.addConstraint(new SubtypingConstraint(this.store.getTypeOrVariable(element, new Bot()), this.returnType));
+    else if (e is InstanceCreationExpression) {
+      element = e.staticElement;
+      this.cs.addConstraint(new SubtypingConstraint(this.store.getTypeOrVariable(element, new Bot()), this.returnType));
+    }
+    else if (e is MethodInvocation) {
+      element = e.staticInvokeType.element;
+      // TODO manejar este caso para retornar una constraint con ArrowType en vez de returnType
+      this.cs.addConstraint(new SubtypingConstraint(this.store.getTypeOrVariable(element, new Bot()), this.returnType));
+    }
+    else if (e is PrefixedIdentifier) {
+      element = e.bestElement;
+      this.cs.addConstraint(new SubtypingConstraint(this.store.getTypeOrVariable(element, new Bot()), this.returnType));
+    }
     return super.visitReturnStatement(node);
+
   }
 }

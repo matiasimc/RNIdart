@@ -24,9 +24,19 @@ class TRNIAnalyzer {
   MemoryResourceProvider resourceProvider = new MemoryResourceProvider();
   DartSdk sdk;
   AnalysisContext context;
-  static String secFile = "";
+  static String secFile;
+  static Store store;
+  static ConstraintSet cs;
+  static Map<String, IType> declaredStore;
+
+  static void reset() {
+    TRNIAnalyzer.store = new Store();
+    TRNIAnalyzer.cs = new ConstraintSet();
+    TRNIAnalyzer.declaredStore = new Map();
+  }
 
   TRNIAnalyzer(String secFile) {
+    TRNIAnalyzer.reset();
     TRNIAnalyzer.secFile = secFile;
     _setUpLogger();
 
@@ -63,12 +73,12 @@ class TRNIAnalyzer {
 
   static List<AnalysisError> computeErrors(CompilationUnit resolvedUnit) {
     Logger.root.shout("Analysis on path: ${resolvedUnit.element.source.uri.path}\n");
-    var visitor = new CompilationUnitVisitor(secFile);
+    var visitor = new CompilationUnitVisitor(store, cs, declaredStore);
     resolvedUnit.accept(visitor);
     Logger.root.shout("Store: \n${visitor.store.printStore()}");
     Logger.root.shout("Constraint Set: \n${visitor.cs.constraints}");
     ErrorCollector errorCollector = new ErrorCollector();
-    resolvedUnit.accept(new LabelVisitor(errorCollector));
+    //resolvedUnit.accept(new LabelVisitor(errorCollector));
     return errorCollector.errors;
   }
 

@@ -20,5 +20,6 @@ export 'src/inference/store.dart';
 export 'src/inference/annotation_helper.dart';
 export 'src/inference/constraints.dart';
 export 'src/inference/constraint_generation.dart';
+export 'src/inference/declared_parser.dart';
 
 // TODO: Export any libraries intended for clients of this package.

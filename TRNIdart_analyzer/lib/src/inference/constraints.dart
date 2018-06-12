@@ -16,29 +16,27 @@ class SubtypingConstraint extends Constraint {
   SubtypingConstraint(this.left, this.right);
 
   @override
-  bool isResolved() {
-    return this.left.isConcrete() || this.right.isConcrete();
-  }
+  bool isResolved() => this.left.isConcrete() || this.right.isConcrete();
 
   @override
   bool isEmpty() => false;
 
-  String toString() => "${left} <: ${right}";
+  String toString() => "${left} <: ${right}\n";
 }
 
 class DeclaredConstraint extends Constraint {
   IType left;
-  DeclaredType right;
+  IType right;
 
   DeclaredConstraint(this.left, this.right);
 
   @override
-  bool isResolved() => true;
+  bool isResolved() => this.left.isConcrete() || this.right.isConcrete();
 
   @override
   bool isEmpty() => false;
 
-  String toString() => "${left} = ${right}";
+  String toString() => "${left} = ${right}\n";
 }
 
 class EmptyConstraint extends Constraint {
