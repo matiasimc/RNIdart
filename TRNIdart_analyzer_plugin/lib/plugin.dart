@@ -47,8 +47,8 @@ class TRNIDartPlugin extends ServerPlugin with FixesMixin {
     final root = new analyzer.ContextRoot(contextRoot.root, contextRoot.exclude)
       ..optionsFilePath = contextRoot.optionsFile;
 
-    String secFile = _createSecFile(contextRoot.root);
-    new TRNIAnalyzer(secFile);
+    _createSecFile(contextRoot.root);
+    TRNIAnalyzer.setUpLogger();
 
     final logger = new PerformanceLog(new StringBuffer());
     final builder = new ContextBuilder(resourceProvider, sdkManager, null)
