@@ -2,6 +2,9 @@ import 'package:TRNIdart_analyzer/TRNIdart_analyzer.dart';
 import 'package:analyzer/analyzer.dart' show AnalysisError, CompilationUnit;
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/error/error.dart';
+import 'package:analyzer/src/generated/engine.dart' hide Logger;
+import 'package:analyzer/src/generated/source.dart';
+
 import 'dart:io';
 
 class TRNIAnalyzer {
@@ -34,6 +37,22 @@ class TRNIAnalyzer {
     ErrorCollector errorCollector = new ErrorCollector();
     //resolvedUnit.accept(new LabelVisitor(errorCollector));
     return errorCollector.errors;
+  }
+
+  static List<AnalysisError> computeAllErrors(AnalysisContext context, Source source,  {bool returnDartErrors: true}) {
+    LibraryElement libraryElement = context.computeLibraryElement(source);
+
+    //var unit = libraryElement.unit;
+    CompilationUnit unit = context.resolveCompilationUnit(source, libraryElement);
+
+    var dartErrors = context.computeErrors(source);
+    var badErrors = dartErrors.where((e) =>
+    e.errorCode.errorSeverity == ErrorSeverity.ERROR ||
+        e.errorCode.errorSeverity == ErrorSeverity.WARNING);
+    if (badErrors.length > 0 && returnDartErrors)
+      return dartErrors;
+
+    return (computeErrors(unit));
   }
 
   static void log(String message) {

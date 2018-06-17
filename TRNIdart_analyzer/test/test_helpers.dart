@@ -82,4 +82,14 @@ class inferred {
         ''';
   }
 
+  List<AnalysisError> typeCheckForSource(Source source, {bool includeDartErrors: false, bool printError: true}) {
+    var errors = TRNIAnalyzer.computeAllErrors(context, source, returnDartErrors: includeDartErrors);
+    if (printError) {
+      for (AnalysisError error in errors) {
+        print(error);
+      }
+    }
+    return errors;
+  }
+
 }

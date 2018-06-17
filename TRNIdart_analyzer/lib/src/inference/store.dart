@@ -38,10 +38,14 @@ class Store {
     return this.elements.containsKey(e);
   }
 
+  IType getType(Element e) {
+    return types[elements[e]];
+  }
+
   IType getTypeOrVariable(Element e, IType defaultType) {
     if (e == null) return this.getTypeVariable(defaultType);
     if (!this.hasElement(e)) this.addElement(e, defaultType);
-    return types[elements[e]];
+    return getType(e);
   }
 
   String printStore() {
