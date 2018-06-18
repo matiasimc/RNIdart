@@ -4,9 +4,9 @@ import 'package:front_end/src/base/source.dart';
 
 class UndefinedInterfaceError extends AnalysisError {
 
-  AbstractClass inferredInterface;
+  var inferredInterface;
 
-  UndefinedInterfaceError(Source source, int offset, int length, AbstractClass this.inferredInterface, String name) :
+  UndefinedInterfaceError(Source source, int offset, int length, this.inferredInterface, String name) :
         super(source, offset, length, new UndefinedInterface(name, "Please define the security interface")) {
   }
 }

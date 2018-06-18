@@ -5,6 +5,8 @@ abstract class Constraint {
   /*
   A constraint is resolved when a type is related to a concrete type
    */
+  IType left;
+  IType right;
   bool isResolved();
   bool isEmpty();
 }
@@ -37,14 +39,6 @@ class DeclaredConstraint extends Constraint {
   bool isEmpty() => false;
 
   String toString() => "${left} = ${right}\n";
-}
-
-class EmptyConstraint extends Constraint {
-  @override
-  bool isResolved() => true;
-
-  @override
-  bool isEmpty() => true;
 }
 
 class ConstraintSet {

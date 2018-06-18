@@ -8,7 +8,7 @@ class Foo {
 }
 
 class Bar {
-  String bar(@declared("StringToString") String a) {
-    return a.toString();
+  String bar(String a) {
+    return a.toString().substring(0);
   }
 }

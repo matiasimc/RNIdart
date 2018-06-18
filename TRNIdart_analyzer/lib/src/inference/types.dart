@@ -1,5 +1,6 @@
 abstract class  IType {
   bool isConcrete();
+  bool equals(IType t);
 }
 
 class TVar extends IType {
@@ -12,6 +13,15 @@ class TVar extends IType {
   TVar(this.index, this.defaultType);
 
   String toString() => "TVar(${this.index})";
+
+  bool equals(IType t) {
+    if (t is TVar) {
+      return this.index == t.index;
+    }
+    return false;
+  }
+
+  bool operator ==(o) => o is TVar && this.index == o.index;
 }
 
 class ObjectType extends IType {
@@ -37,6 +47,18 @@ class ObjectType extends IType {
   }
 
   String toString() => "${members}";
+
+  bool equals(IType t) {
+    bool ret = true;
+    if (t is ObjectType) {
+      this.members.forEach((label, type) {
+        if (!t.members.containsKey(label)) return false;
+        ret = ret && t.members[label].equals(this.members[label]);
+      });
+    }
+    else ret = false;
+    return ret;
+  }
 }
 
 class ArrowType extends IType {
@@ -55,18 +77,34 @@ class ArrowType extends IType {
   }
 
   String toString() => "${leftSide} -> ${rightSide}";
+
+  bool equals(IType t) {
+    if (t is ArrowType) {
+      if (!rightSide.equals(t.rightSide)) return false;
+      if (leftSide.length != t.leftSide.length) return false;
+      for (int i = 0; i < leftSide.length; i++) {
+        if (!leftSide[i].equals(t.leftSide[i])) return false;
+      }
+    }
+    else return false;
+    return true;
+  }
 }
 
-class Top extends IType {
+class Top extends ObjectType {
   @override
   bool isConcrete() => true;
 
   String toString() => "Top";
+
+  bool equals(IType t) => t is Top;
 }
 
-class Bot extends IType {
+class Bot extends ObjectType {
   @override
   bool isConcrete() => true;
 
   String toString() => "Bot";
+
+  bool equals(IType t) => t is Bot;
 }
