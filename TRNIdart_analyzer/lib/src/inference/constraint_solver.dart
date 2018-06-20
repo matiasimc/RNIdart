@@ -20,7 +20,7 @@ class ConstraintSolver {
     First, we remove "dummy" constraints like Bot <: x or x <: Top
      */
     log.shout("Step 1");
-    this.cs.constraints.removeWhere((Constraint c) => (c.left is Bot) || (c.right is Top));
+    this.cs.constraints.removeWhere((Constraint c) => (c is SubtypingConstraint) && ((c.left is Bot) || (c.right is Top)));
 
     /*
     We generate a map from the type variables to every constraint that has the
@@ -35,12 +35,9 @@ class ConstraintSolver {
         if (!groupedConstraints.containsKey(left)) groupedConstraints[left] = new Set<Constraint>();
         groupedConstraints[left].add(c);
       }
-      /*if (right is TVar) {
-        if (!groupedConstraints.containsKey(right)) groupedConstraints[right] = new Set<Constraint>();
-        groupedConstraints[right].add(c);
-      }*/
     }
-
+    log.shout("\n groupedConstraints: \n${groupedConstraints}");
+    log.shout("\n constraintSet: \n${this.cs.constraints}");
     /*
     Now, we look in descending order for type variables that are not in the
     groupedConstraints map, and replace them with their default values.
@@ -60,6 +57,8 @@ class ConstraintSolver {
         }
       }
     }
+    log.shout("\n groupedConstraints: \n${groupedConstraints}");
+    log.shout("\n constraintSet: \n${this.cs.constraints}");
 
     /*
     Now, we iterate over all declared constraint that are resolved and replace them in
@@ -67,13 +66,17 @@ class ConstraintSolver {
      */
 
     log.shout("Step 4");
-    substituteWhereUntilEmpty((c) => c is DeclaredConstraint && c.isResolved() && c.left.isVariable());
+    substituteWhereUntilEmpty((c) => (c is DeclaredConstraint) && c.isResolved() && c.left.isVariable(), replaceLeft: true);
+    log.shout("\n groupedConstraints: \n${groupedConstraints}");
+    log.shout("\n constraintSet: \n${this.cs.constraints}");
 
     /*
     Then, we replace the resolved constraints resulted from the previous step
      */
     log.shout("Step 5");
     substituteWhereUntilEmpty((Constraint c) => c.isResolved() && c.left.isVariable() && groupedConstraints[c.left].length == 1);
+    log.shout("\n groupedConstraints: \n${groupedConstraints}");
+    log.shout("\n constraintSet: \n${this.cs.constraints}");
 
     /*
     Now we reduce the groups in the groupedConstraints
@@ -90,11 +93,13 @@ class ConstraintSolver {
     groupedConstraints.forEach((tvar, set) {
       reduceConstraints(set);
     });
+    log.shout("\n groupedConstraints: \n${groupedConstraints}");
+    log.shout("\n constraintSet: \n${this.cs.constraints}");
 
     /*
     Then, we replace the resolved constraints resulted from the previous step
      */
-    log.shout("Step 5");
+    log.shout("Step 5 again");
     substituteWhereUntilEmpty((Constraint c) => c.isResolved() && c.left.isVariable() && groupedConstraints[c.left].length == 1);
 
     /*
@@ -112,7 +117,7 @@ class ConstraintSolver {
 
   }
 
-  void substituteWhereUntilEmpty(test) {
+  void substituteWhereUntilEmpty(test, {bool replaceLeft = false}) {
     /*
     1- Select the constraints in this.cs.constraints that satisfy test.
     2- Substitute in every set and in this.cs.constraints.
@@ -122,7 +127,10 @@ class ConstraintSolver {
     while (filter.isNotEmpty) {
       Constraint pop = filter.removeLast();
       for (Constraint c in this.cs.constraints) {
-        c.right = substitute(c.right, pop.left, pop.right);
+        if (c != pop) {
+          c.right = substitute(c.right, pop.left, pop.right);
+          if (replaceLeft) c.left = substitute(c.left, pop.left, pop.right);
+        }
       }
       this.cs.constraints.remove(pop);
       filter = this.cs.constraints.where(test).toList();
@@ -168,11 +176,18 @@ class ConstraintSolver {
 
   void reduceConstraints(Set<Constraint> set) {
     this.cs.constraints.removeWhere((c) => set.contains(c));
-    Constraint newConstraint = set.reduce(joinConstraint);
+    Constraint newConstraint = set.reduce((c1,c2) {
+      if (!c1.isValid()) {
+        // TODO agregar error a errorCollector
+        log.shout("Hubo un error pues ${c1} no es válida");
+      }
+      if (!c2.isValid()) {
+        log.shout("Hubo un error pues ${c2} no es válida");
+      }
+      return meetConstraint(c1, c2);
+    });
     set.retainAll([]);
     set.add(newConstraint);
     this.cs.constraints.add(newConstraint);
-
-    // TODO make a "subtyping subset" and a "supertyping subset", reduce with join and meet respectively, and check both constraints.
   }
 }

@@ -89,19 +89,10 @@ class inferred {
         ''';
   }
 
-  List<AnalysisError> typeCheckForSource(Source source, {bool includeDartErrors: false, bool printError: true}) {
-    var errors = TRNIAnalyzer.computeAllErrors(context, source, returnDartErrors: includeDartErrors);
-    if (printError) {
-      for (AnalysisError error in errors) {
-        print(error);
-      }
-    }
-    return errors;
-  }
-
   IType checkTypeForSourceWithQuery(Source original, String query) {
     var resolvedUnit = context.resolveCompilationUnit(original, context.computeLibraryElement(original));
-    TRNIAnalyzer.computeErrors(resolvedUnit);
+    TRNIAnalyzer.computeConstraints(resolvedUnit);
+    TRNIAnalyzer.computeTypes();
     Element element = TRNIAnalyzer.store.elements.keys.firstWhere((e) => e.toString() == query);
     if (element == null) return null;
     return TRNIAnalyzer.store.getType(element);

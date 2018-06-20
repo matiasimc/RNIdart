@@ -29,34 +29,28 @@ class TRNIAnalyzer {
   }
 
   static List<AnalysisError> computeErrors(CompilationUnit resolvedUnit) {
+    var errors = computeConstraints(resolvedUnit);
+    //computeTypes();
+    return errors;
+  }
+
+  static List<AnalysisError> computeConstraints(CompilationUnit resolvedUnit) {
     ErrorCollector errorCollector = new ErrorCollector();
     Logger.root.shout("Analysis on path: ${resolvedUnit.element.source.uri.path}\n");
     var visitor = new CompilationUnitVisitor(store, cs, declaredStore);
     resolvedUnit.accept(visitor);
-    Logger.root.shout("Store: \n${visitor.store.printStore()}");
-    Logger.root.shout("Constraint Set: \n${visitor.cs.constraints}");
-    Logger.root.shout("Solving constraints...");
-    new ConstraintSolver(store, cs, errorCollector).solve();
-    Logger.root.shout("Store: \n${visitor.store.printStore()}");
-    Logger.root.shout("Constraint Set: \n${visitor.cs.constraints}");
-    //resolvedUnit.accept(new LabelVisitor(errorCollector));
+    Logger.root.shout("Store: \n${TRNIAnalyzer.store.printStore()}");
+    Logger.root.shout("Constraint Set: \n${TRNIAnalyzer.cs.constraints}");
     return errorCollector.errors;
   }
 
-  static List<AnalysisError> computeAllErrors(AnalysisContext context, Source source,  {bool returnDartErrors: true}) {
-    LibraryElement libraryElement = context.computeLibraryElement(source);
-
-    //var unit = libraryElement.unit;
-    CompilationUnit unit = context.resolveCompilationUnit(source, libraryElement);
-
-    var dartErrors = context.computeErrors(source);
-    var badErrors = dartErrors.where((e) =>
-    e.errorCode.errorSeverity == ErrorSeverity.ERROR ||
-        e.errorCode.errorSeverity == ErrorSeverity.WARNING);
-    if (badErrors.length > 0 && returnDartErrors)
-      return dartErrors;
-
-    return (computeErrors(unit));
+  static List<AnalysisError> computeTypes() {
+    ErrorCollector errorCollector = new ErrorCollector();
+    Logger.root.shout("Solving constraints...");
+    new ConstraintSolver(TRNIAnalyzer.store, TRNIAnalyzer.cs, errorCollector).solve();
+    Logger.root.shout("Store: \n${TRNIAnalyzer.store.printStore()}");
+    Logger.root.shout("Constraint Set: \n${TRNIAnalyzer.cs.constraints}");
+    return errorCollector.errors;
   }
 
   static void log(String message) {

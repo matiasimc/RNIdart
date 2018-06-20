@@ -4,7 +4,6 @@
 library RefinedTypes;
 
 export 'package:logging/logging.dart';
-export 'src/tools/StringSource.dart';
 export 'src/visitors/label_visitor.dart';
 export 'package:analyzer/analyzer.dart';
 export 'package:analyzer/dart/element/element.dart';

@@ -11,7 +11,7 @@ void main() {
   test("Basic inference of method usage", () {
     var program =
     '''
-    import "package:secdart/secdart.dart";
+    import "package:TRNIdart/TRNIdart.dart";
     
     class Bar {
       void bar(String s) {
@@ -31,17 +31,22 @@ void main() {
   test("Test of declared facet", () {
     var program =
         '''
-        import "package:secdart/secdart.dart";
+        import "package:TRNIdart/TRNIdart.dart";
         
         class Foo {
-          String bar(@declared("Bot") String s) {
+          String bar(@declared("StringToString") String s) {
             return s;
           }
+        }
+        
+        abstract class StringToString {
+          String toString();
         }
         ''';
 
     var source = mft.newSource("/test.dart", program);
     var result = mft.checkTypeForSourceWithQuery(source, "bar(String s) → String");
-    expect(result, equals(new Bot()));
+    var members = new Map(); members["toString"] = new ArrowType([], new Bot());
+    expect(result, equals(new ObjectType(members)));
   });
 }

@@ -288,7 +288,8 @@ class MethodBodyVisitor extends RecursiveAstVisitor {
 
   @override
   visitReturnStatement(ReturnStatement node) {
-    this.cs.addConstraint(new SubtypingConstraint(processExpression(node.expression), this.returnType));
+    // TODO this constraint should be expresion <: returnType
+    this.cs.addConstraint(new SubtypingConstraint(this.returnType, processExpression(node.expression)));
     return super.visitReturnStatement(node);
   }
 }

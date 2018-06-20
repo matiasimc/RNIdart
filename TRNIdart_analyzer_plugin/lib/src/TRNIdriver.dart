@@ -26,7 +26,6 @@ class TRNIDriver implements AnalysisDriverGeneric {
   final _dartFiles = new LinkedHashSet<String>();
   final _changedFiles = new LinkedHashSet<String>();
   final _filesToAnalyze = new HashSet<String>();
-  final _requestedDartFiles = new Map<String, List<Completer>>();
 
   TRNIDriver(this.notificationManager, this.dartDriver, this._scheduler,
       SourceFactory sourceFactory, this._contentOverlay) {
@@ -61,36 +60,25 @@ class TRNIDriver implements AnalysisDriverGeneric {
 
   @override
   Future<Null> performWork() async {
-    if (_requestedDartFiles.isNotEmpty) {
-      final path = _requestedDartFiles.keys.first;
-      final completers = _requestedDartFiles.remove(path);
-      // Note: We can't use await here, or the dart analysis becomes a future in
-      // a queue that won't be completed until the scheduler schedules the dart
-      // driver, which doesn't happen because its waiting for us.
-      //resolveDart(path).then((result) {
-      resolveTRNIDart(path).then((result) {
-        completers
-            .forEach((completer) => completer.complete(result?.errors ?? []));
-      }, onError: (e) {
-        completers.forEach((completer) => completer.completeError(e));
-      });
-      return;
-    }
+    TRNIAnalyzer.reset();
     if (_changedFiles.isNotEmpty) {
       _changedFiles.clear();
       _filesToAnalyze.addAll(_dartFiles);
       return;
     }
     if (_filesToAnalyze.isNotEmpty) {
-      final path = _filesToAnalyze.first;
-      pushDartErrors(path);
-      _filesToAnalyze.remove(path);
+      generateAndThenSolveConstraints();
       return;
     }
-    else {
-      TRNIAnalyzer.reset();
-    }
     return;
+  }
+
+  void generateAndThenSolveConstraints() async {
+    for (final path in _addedFiles) {
+      await pushDartErrors(path);
+      await _filesToAnalyze.removeWhere((s) => s == path);
+    }
+    await TRNIAnalyzer.computeTypes();
   }
 
   Future<TRNIResult> resolveTRNIDart(String path) async {

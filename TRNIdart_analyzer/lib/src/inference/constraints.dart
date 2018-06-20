@@ -9,6 +9,7 @@ abstract class Constraint {
   IType right;
   bool isResolved();
   bool isEmpty();
+  bool isValid();
 }
 
 class SubtypingConstraint extends Constraint {
@@ -27,6 +28,9 @@ class SubtypingConstraint extends Constraint {
 
   bool operator ==(Object o) =>
     (o is SubtypingConstraint && this.left.equals(o.left) && this.right.equals(o.right));
+
+  @override
+  bool isValid() => this.left.subtypeOf(this.right);
 }
 
 class DeclaredConstraint extends Constraint {
@@ -45,6 +49,9 @@ class DeclaredConstraint extends Constraint {
 
   bool operator ==(Object o) =>
       (o is DeclaredConstraint && this.left.equals(o.left) && this.right.equals(o.right));
+
+  @override
+  bool isValid() => true;
 }
 
 class ConstraintSet {

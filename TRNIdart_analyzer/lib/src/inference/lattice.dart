@@ -1,10 +1,10 @@
 import 'package:TRNIdart_analyzer/TRNIdart_analyzer.dart';
 
-SubtypingConstraint joinConstraint(Constraint c1, Constraint c2) {
-  return new SubtypingConstraint(c1.left, join(c1.right, c2.right));
+SubtypingConstraint meetConstraint(Constraint c1, Constraint c2) {
+  return new SubtypingConstraint(c1.left, meet(c1.right, c2.right));
 }
 
-ObjectType join(ObjectType t1, ObjectType t2) {
+ObjectType meet(ObjectType t1, ObjectType t2) {
   if (t1 is Bot) return t1;
   if (t2 is Bot) return t2;
   if (t1 is Top) return t2;
@@ -15,7 +15,7 @@ ObjectType join(ObjectType t1, ObjectType t2) {
   return t;
 }
 
-ObjectType meet(ObjectType t1, ObjectType t2) {
+ObjectType join(ObjectType t1, ObjectType t2) {
   if (t1 is Bot) return t2;
   if (t2 is Bot) return t1;
   if (t1 is Top) return t1;
