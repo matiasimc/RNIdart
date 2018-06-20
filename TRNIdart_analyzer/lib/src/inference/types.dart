@@ -63,6 +63,10 @@ class ObjectType extends IType {
     else ret = false;
     return ret;
   }
+
+  bool operator==(Object o) {
+    return (o is ObjectType && this.equals(o));
+  }
 }
 
 class ArrowType extends IType {
@@ -104,6 +108,8 @@ class Top extends ObjectType {
 
   @override
   bool equals(IType t) => t is Top;
+
+  bool operator ==(Object o) => o is Top;
 }
 
 class Bot extends ObjectType {
@@ -115,4 +121,6 @@ class Bot extends ObjectType {
 
   @override
   bool equals(IType t) => t is Bot;
+
+  bool operator ==(Object o) => o is Bot;
 }

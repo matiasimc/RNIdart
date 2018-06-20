@@ -105,13 +105,9 @@ The inferred facets will also be added to this file.
     if (driver == null) {
       return;
     }
-    driver
-      ..addFile(path)
-      ..fileChanged(path);
+    driver.addFile(path);
 
-    driver.dartDriver
-      ..addFile(path)
-      ..changeFile(path);
+    driver.dartDriver.addFile(path);
   }
 
   TRNIDriver TRNIDriverForPath(String path) {

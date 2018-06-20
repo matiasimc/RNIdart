@@ -133,7 +133,7 @@ class ConstraintSolver {
     if (source.equals(target)) return newType;
     else {
       if (source is ArrowType) {
-        List<IType> left = source.leftSide.map((p) => substitute(p, target, newType));
+        List<IType> left = source.leftSide.map((p) => substitute(p, target, newType)).toList();
         IType right = substitute(source.rightSide, target, newType);
         return new ArrowType(left.toList(), right);
       }

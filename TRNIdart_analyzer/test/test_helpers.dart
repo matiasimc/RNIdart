@@ -36,9 +36,16 @@ class MemoryFileTest {
     context.applyChanges(changeSet);
   }
 
+  DartSdk getDartSdk() {
+    PhysicalResourceProvider physicalResourceProvider = PhysicalResourceProvider.INSTANCE;
+    var dartSdkDirectory = getSdkPath();
+    DartSdk sdk = new FolderBasedDartSdk(
+        physicalResourceProvider, physicalResourceProvider.getFolder(dartSdkDirectory));
+    return sdk;
+  }
+
   void setUp() {
-    sdk = new FolderBasedDartSdk(
-        resourceProvider, resourceProvider.getFolder(getSdkPath()));
+    sdk = getDartSdk();
 
     context = AnalysisEngine.instance.createAnalysisContext();
 
@@ -90,6 +97,14 @@ class inferred {
       }
     }
     return errors;
+  }
+
+  IType checkTypeForSourceWithQuery(Source original, String query) {
+    var resolvedUnit = context.resolveCompilationUnit(original, context.computeLibraryElement(original));
+    TRNIAnalyzer.computeErrors(resolvedUnit);
+    Element element = TRNIAnalyzer.store.elements.keys.firstWhere((e) => e.toString() == query);
+    if (element == null) return null;
+    return TRNIAnalyzer.store.getType(element);
   }
 
 }
