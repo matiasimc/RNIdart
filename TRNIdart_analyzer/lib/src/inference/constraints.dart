@@ -24,6 +24,9 @@ class SubtypingConstraint extends Constraint {
   bool isEmpty() => false;
 
   String toString() => "${left} <: ${right}\n";
+
+  bool operator ==(Object o) =>
+    (o is SubtypingConstraint && this.left.equals(o.left) && this.right.equals(o.right));
 }
 
 class DeclaredConstraint extends Constraint {
@@ -39,6 +42,9 @@ class DeclaredConstraint extends Constraint {
   bool isEmpty() => false;
 
   String toString() => "${left} = ${right}\n";
+
+  bool operator ==(Object o) =>
+      (o is DeclaredConstraint && this.left.equals(o.left) && this.right.equals(o.right));
 }
 
 class ConstraintSet {

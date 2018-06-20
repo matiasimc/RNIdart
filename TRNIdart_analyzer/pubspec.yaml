@@ -9,6 +9,7 @@ environment:
 
 dependencies:
   analyzer: "^0.31.0-alpha.1"
+  tuple:
 #  path: ^1.4.1
 
 dev_dependencies:

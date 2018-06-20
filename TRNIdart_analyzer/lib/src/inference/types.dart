@@ -1,6 +1,7 @@
 abstract class  IType {
   bool isConcrete();
   bool equals(IType t);
+  bool isVariable() => false;
 }
 
 class TVar extends IType {
@@ -22,6 +23,9 @@ class TVar extends IType {
   }
 
   bool operator ==(o) => o is TVar && this.index == o.index;
+
+  @override
+  bool isVariable() => true;
 }
 
 class ObjectType extends IType {
@@ -95,8 +99,10 @@ class Top extends ObjectType {
   @override
   bool isConcrete() => true;
 
+  @override
   String toString() => "Top";
 
+  @override
   bool equals(IType t) => t is Top;
 }
 
@@ -104,7 +110,9 @@ class Bot extends ObjectType {
   @override
   bool isConcrete() => true;
 
+  @override
   String toString() => "Bot";
 
+  @override
   bool equals(IType t) => t is Bot;
 }

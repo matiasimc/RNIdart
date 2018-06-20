@@ -1,5 +1,9 @@
 import 'package:TRNIdart_analyzer/TRNIdart_analyzer.dart';
 
+SubtypingConstraint joinConstraint(Constraint c1, Constraint c2) {
+  return new SubtypingConstraint(c1.left, join(c1.right, c2.right));
+}
+
 ObjectType join(ObjectType t1, ObjectType t2) {
   if (t1 is Bot) return t1;
   if (t2 is Bot) return t2;

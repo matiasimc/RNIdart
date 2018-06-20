@@ -29,12 +29,16 @@ class TRNIAnalyzer {
   }
 
   static List<AnalysisError> computeErrors(CompilationUnit resolvedUnit) {
+    ErrorCollector errorCollector = new ErrorCollector();
     Logger.root.shout("Analysis on path: ${resolvedUnit.element.source.uri.path}\n");
     var visitor = new CompilationUnitVisitor(store, cs, declaredStore);
     resolvedUnit.accept(visitor);
     Logger.root.shout("Store: \n${visitor.store.printStore()}");
     Logger.root.shout("Constraint Set: \n${visitor.cs.constraints}");
-    ErrorCollector errorCollector = new ErrorCollector();
+    Logger.root.shout("Solving constraints...");
+    new ConstraintSolver(store, cs, errorCollector).solve();
+    Logger.root.shout("Store: \n${visitor.store.printStore()}");
+    Logger.root.shout("Constraint Set: \n${visitor.cs.constraints}");
     //resolvedUnit.accept(new LabelVisitor(errorCollector));
     return errorCollector.errors;
   }

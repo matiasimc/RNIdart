@@ -1,6 +1,8 @@
 import 'package:TRNIdart_analyzer/TRNIdart_analyzer.dart';
+import 'package:tuple/tuple.dart';
 
 class ConstraintSolver {
+  final Logger log = new Logger("ConstraintSolver");
   ConstraintSet cs;
   Store store;
   ErrorCollector collector;
@@ -15,60 +17,66 @@ class ConstraintSolver {
     if (this.store.varIndex < 1) return;
 
     /*
+    First, we remove "dummy" constraints like Bot <: x or x <: Top
+     */
+    log.shout("Step 1");
+    this.cs.constraints.removeWhere((Constraint c) => (c.left is Bot) || (c.right is Top));
+
+    /*
     We generate a map from the type variables to every constraint that has the
     type variable
      */
+    log.shout("Step 2");
     groupedConstraints = new Map();
     for (Constraint c in this.cs.constraints) {
       IType left = c.left;
+      IType right = c.right;
       if (left is TVar) {
         if (!groupedConstraints.containsKey(left)) groupedConstraints[left] = new Set<Constraint>();
         groupedConstraints[left].add(c);
       }
-    }
-
-    /*
-    We iterate over all declared constraint that are resolved and replace them in
-    the groupedConstraints map, and iterate until no declared constraint are left
-     */
-
-    List<Constraint> declaredAndResolved =
-      this.cs.constraints.where((c) => c is DeclaredConstraint && c.isResolved());
-
-    while (declaredAndResolved.isNotEmpty) {
-      for (Constraint c in declaredAndResolved) {
-        this.groupedConstraints.forEach((tvar, set) {
-          set.forEach((sourceConstraint) => substitute(sourceConstraint.right, c.left, c.right));
-        });
-      }
-      this.cs.constraints.removeWhere((c) => declaredAndResolved.contains(c));
-      groupedConstraints.values.forEach((set) => set.removeWhere((c) => declaredAndResolved.contains(c)));
-      declaredAndResolved =
-          this.cs.constraints.where((c) => c is DeclaredConstraint && c.isResolved());
+      /*if (right is TVar) {
+        if (!groupedConstraints.containsKey(right)) groupedConstraints[right] = new Set<Constraint>();
+        groupedConstraints[right].add(c);
+      }*/
     }
 
     /*
     Now, we look in descending order for type variables that are not in the
     groupedConstraints map, and replace them with their default values.
      */
+    log.shout("Step 3");
     for (int i = this.store.varIndex; i >= 0; i--) {
-      TVar tvari = new TVar(i, null);
-      if (!groupedConstraints.containsKey(tvari)) {
-        groupedConstraints.values.forEach((set) => set.forEach((c) {
+      if (groupedConstraints.keys.where((TVar t) => t.index == i).isEmpty) {
+        for (Constraint c in this.cs.constraints) {
           var tVars = searchTVar(c.right, i);
-          if (tVars.isNotEmpty) {
-            substitute(c.right, tVars.first, tVars.first.defaultType);
-          }
-        }));
+          if (tVars.isNotEmpty)
+            c.right = substitute(c.right, tVars.first, tVars.first.defaultType);
+        }
+        for (int m in this.store.types.keys) {
+          var tVars = searchTVar(this.store.types[m], i);
+          if (tVars.isNotEmpty)
+            this.store.types[m] = substitute(this.store.types[m], tVars.first, tVars.first.defaultType);
+        }
       }
     }
 
     /*
-    Then, we replace the resolved constraints resulted from the previous step
+    Now, we iterate over all declared constraint that are resolved and replace them in
+    the groupedConstraints map, until no declared constraint are left
      */
 
+    log.shout("Step 4");
+    substituteWhereUntilEmpty((c) => c is DeclaredConstraint && c.isResolved() && c.left.isVariable());
+
     /*
-    Again in descending order, we reduce the groups in the groupedConstraints
+    Then, we replace the resolved constraints resulted from the previous step
+     */
+    log.shout("Step 5");
+    substituteWhereUntilEmpty((Constraint c) => c.isResolved() && c.left.isVariable() && groupedConstraints[c.left].length == 1);
+
+    /*
+    Now we reduce the groups in the groupedConstraints
     map to only one constraint, doing the replacement and iterating until every
     entry of the map has only one constraint.
 
@@ -78,23 +86,64 @@ class ConstraintSolver {
     - If t2 <: t1 and t3 <: t1 then t1 <: meet(t2, t3)
      */
 
+    log.shout("Step 6");
+    groupedConstraints.forEach((tvar, set) {
+      reduceConstraints(set);
+    });
+
     /*
-    Finally, we do a replacement in the store
+    Then, we replace the resolved constraints resulted from the previous step
      */
+    log.shout("Step 5");
+    substituteWhereUntilEmpty((Constraint c) => c.isResolved() && c.left.isVariable() && groupedConstraints[c.left].length == 1);
+
+    /*
+    Finally, we do a replacement in the store, and look for type variables in
+    the store that are not in the groupedConstraints map, and replace them with
+    their default value.
+     */
+
+    log.shout("\n groupedConstraints: \n${groupedConstraints}");
+
+    store.types.forEach((i, t) {
+      if (groupedConstraints.containsKey(t) && groupedConstraints[t].length == 1 && groupedConstraints[t].first.isResolved())
+        store.types[i] = groupedConstraints[t].first.right;
+    });
 
   }
 
-  void substitute(IType source, IType target, IType newType) {
-    if (source.equals(target)) source = newType;
+  void substituteWhereUntilEmpty(test) {
+    /*
+    1- Select the constraints in this.cs.constraints that satisfy test.
+    2- Substitute in every set and in this.cs.constraints.
+    3- Go to step 1, unless there is no constraint that satisfy test.
+     */
+    List<Constraint> filter = this.cs.constraints.where(test).toList();
+    while (filter.isNotEmpty) {
+      Constraint pop = filter.removeLast();
+      for (Constraint c in this.cs.constraints) {
+        c.right = substitute(c.right, pop.left, pop.right);
+      }
+      this.cs.constraints.remove(pop);
+      filter = this.cs.constraints.where(test).toList();
+    }
+  }
+
+  IType substitute(IType source, IType target, IType newType) {
+    if (source.equals(target)) return newType;
     else {
       if (source is ArrowType) {
-        source.leftSide.forEach((p) => substitute(p, target, newType));
-        substitute(source.rightSide, target, newType);
+        List<IType> left = source.leftSide.map((p) => substitute(p, target, newType));
+        IType right = substitute(source.rightSide, target, newType);
+        return new ArrowType(left.toList(), right);
       }
+      else if (source is Top) return source;
+      else if (source is Bot) return source;
       else if (source is ObjectType) {
-        source.members.values.forEach((arrowType) => substitute(arrowType, target, newType));
+        Map members = source.members.map((label, arrowType) => new MapEntry(label, substitute(arrowType, target, newType)));
+        return new ObjectType(members);
       }
-      else return;
+      else return source;
     }
   }
 
@@ -117,4 +166,13 @@ class ConstraintSolver {
     return ret;
   }
 
+  void reduceConstraints(Set<Constraint> set) {
+    this.cs.constraints.removeWhere((c) => set.contains(c));
+    Constraint newConstraint = set.reduce(joinConstraint);
+    set.retainAll([]);
+    set.add(newConstraint);
+    this.cs.constraints.add(newConstraint);
+
+    // TODO make a "subtyping subset" and a "supertyping subset", reduce with join and meet respectively, and check both constraints.
+  }
 }
