@@ -49,4 +49,24 @@ void main() {
     var members = new Map(); members["toString"] = new ArrowType([], new Bot());
     expect(result, equals(new ObjectType(members)));
   });
+
+  test("Test of chained method call", () {
+    var program =
+        '''
+        import "package:TRNIdart/TRNIdart.dart";
+        
+        class Foo {
+          void foo(String s) {
+            s.toLowerCase().toString().substring(0);
+          }
+        }
+        ''';
+
+    var source = mft.newSource("/test.dart", program);
+    var result = mft.checkTypeForSourceWithQuery(source, "String s");
+    var members3 = new Map(); members3["substring"] = new ArrowType([new Top()], new Bot());
+    var members2 = new Map(); members2["toString"] = new ArrowType([], new ObjectType(members3));
+    var members = new Map(); members["toLowerCase"] = new ArrowType([], new ObjectType(members2));
+    expect(result, equals(new ObjectType(members)));
+  });
 }

@@ -68,6 +68,7 @@ class MemoryFileTest {
     Source source = secDart;
     ChangeSet changeSet = new ChangeSet()..addedSource(source);
     context.applyChanges(changeSet);
+    TRNIAnalyzer.reset();
   }
 
   String _getTRNIDartContent() {
