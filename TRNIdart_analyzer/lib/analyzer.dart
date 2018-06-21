@@ -28,12 +28,6 @@ class TRNIAnalyzer {
     });
   }
 
-  static List<AnalysisError> computeErrors(CompilationUnit resolvedUnit) {
-    var errors = computeConstraints(resolvedUnit);
-    //computeTypes();
-    return errors;
-  }
-
   static List<AnalysisError> computeConstraints(CompilationUnit resolvedUnit) {
     ErrorCollector errorCollector = new ErrorCollector();
     Logger.root.shout("Analysis on path: ${resolvedUnit.element.source.uri.path}\n");

@@ -75,10 +75,10 @@ class TRNIDriver implements AnalysisDriverGeneric {
 
   void generateAndThenSolveConstraints() async {
     for (final path in _addedFiles) {
-      await pushDartErrors(path);
+      await pushConstraintErrors(path);
       await _filesToAnalyze.removeWhere((s) => s == path);
     }
-    await TRNIAnalyzer.computeTypes();
+    await pushTypeErrors();
   }
 
   Future<TRNIResult> resolveTRNIDart(String path) async {
@@ -87,15 +87,25 @@ class TRNIDriver implements AnalysisDriverGeneric {
     if (unit.element == null) return null;
 
     final unitAst = unit.element.computeNode();
-    return new TRNIResult(TRNIAnalyzer.computeErrors(unitAst));
+    return new TRNIResult(TRNIAnalyzer.computeConstraints(unitAst));
   }
 
-  Future pushDartErrors(String path) async {
+  Future pushConstraintErrors(String path) async {
     final result = await resolveTRNIDart(path);
     if (result == null) return;
     final errors = new List<AnalysisError>.from(result.errors);
     final lineInfo = new LineInfo.fromContent(getFileContent(path));
     notificationManager.recordAnalysisErrors(path, lineInfo, errors);
+  }
+
+  Future pushTypeErrors() async {
+    final result = await TRNIAnalyzer.computeTypes();
+    if (result == null) return;
+    for (final path in _addedFiles) {
+      final filter = result.where((error) => error.source.uri.path == path).toList();
+      final lineInfo = new LineInfo.fromContent(getFileContent(path));
+      notificationManager.recordAnalysisErrors(path, lineInfo, filter);
+    }
   }
 
   String getFileContent(String path) {
