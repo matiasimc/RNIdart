@@ -2,20 +2,22 @@ import 'package:TRNIdart_analyzer/TRNIdart_analyzer.dart';
 import 'package:analyzer/error/error.dart';
 import 'package:front_end/src/base/source.dart';
 
-class TypeError extends AnalysisError {
-  TypeError(Source source, int offset, int length, Constraint c) :
-      super(source, offset, length, new TypeErrorCode(c, "Please check your security policies")) {
+class SubtypingError extends AnalysisError {
+  Constraint c;
+  SubtypingError(this.c) :
+      super(c.location.source, c.location.offset, c.location.length, new SubtypingErrorCode(c, "Please check your security policies"));
 
-  }
+  @override
+  bool operator ==(Object o) => o is SubtypingError && o.c == this.c;
 }
 
-class TypeErrorCode implements ErrorCode {
+class SubtypingErrorCode implements ErrorCode {
   final String name = "Type error";
   String message;
   final String correction;
   Constraint constraint;
 
-  TypeErrorCode(this.constraint, [String this.correction]) {
+  SubtypingErrorCode(this.constraint, [String this.correction]) {
     this.message = "The subtyping relation ${constraint} is invalid.";
   }
 

@@ -7,6 +7,7 @@ abstract class Constraint {
    */
   IType left;
   IType right;
+  ErrorLocation location;
   bool isResolved();
   bool isEmpty();
   bool isValid();
@@ -15,8 +16,9 @@ abstract class Constraint {
 class SubtypingConstraint extends Constraint {
   IType left;
   IType right;
+  ErrorLocation location;
 
-  SubtypingConstraint(this.left, this.right);
+  SubtypingConstraint(this.left, this.right, this.location);
 
   @override
   bool isResolved() => this.left.isConcrete() || this.right.isConcrete();
@@ -36,8 +38,9 @@ class SubtypingConstraint extends Constraint {
 class DeclaredConstraint extends Constraint {
   IType left;
   IType right;
+  ErrorLocation location;
 
-  DeclaredConstraint(this.left, this.right);
+  DeclaredConstraint(this.left, this.right, this.location);
 
   @override
   bool isResolved() => this.left.isConcrete() || this.right.isConcrete();

@@ -9,6 +9,7 @@ export 'package:analyzer/dart/element/element.dart';
 export 'package:analyzer/src/dart/ast/ast.dart';
 export 'src/errors/collector.dart';
 export 'src/errors/errors.dart';
+export 'src/errors/error_location.dart';
 export 'src/inference/types.dart';
 export 'src/inference/store.dart';
 export 'src/inference/annotation_helper.dart';

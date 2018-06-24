@@ -129,7 +129,7 @@ The inferred facets will also be added to this file.
     if (driver != null) {
       TRNIResult result = await driver.resolveTRNIDart(parameters.file);
       AnalysisSession session = driver.dartDriver.currentSession;
-      return new TRNIFixesRequest(resourceProvider, parameters.offset, parameters.file, result.errors);
+      return new TRNIFixesRequest(resourceProvider, parameters.offset, parameters.file, result.errors.toList());
     }
     return null;
   }

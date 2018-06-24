@@ -1,7 +1,7 @@
 import 'package:TRNIdart_analyzer/TRNIdart_analyzer.dart';
 
 SubtypingConstraint meetConstraint(Constraint c1, Constraint c2) {
-  return new SubtypingConstraint(c1.left, meet(c1.right, c2.right));
+  return new SubtypingConstraint(c1.left, meet(c1.right, c2.right), c1.location);
 }
 
 ObjectType meet(ObjectType t1, ObjectType t2) {

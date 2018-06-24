@@ -28,17 +28,17 @@ class TRNIAnalyzer {
     });
   }
 
-  static List<AnalysisError> computeConstraints(CompilationUnit resolvedUnit) {
+  static Set<AnalysisError> computeConstraints(CompilationUnit resolvedUnit) {
     ErrorCollector errorCollector = new ErrorCollector();
     Logger.root.shout("Analysis on path: ${resolvedUnit.element.source.uri.path}\n");
-    var visitor = new CompilationUnitVisitor(store, cs, declaredStore);
+    var visitor = new CompilationUnitVisitor(store, cs, declaredStore, resolvedUnit.element.source);
     resolvedUnit.accept(visitor);
     Logger.root.shout("Store: \n${TRNIAnalyzer.store.printStore()}");
     Logger.root.shout("Constraint Set: \n${TRNIAnalyzer.cs.constraints}");
     return errorCollector.errors;
   }
 
-  static List<AnalysisError> computeTypes() {
+  static Set<AnalysisError> computeTypes() {
     ErrorCollector errorCollector = new ErrorCollector();
     Logger.root.shout("Solving constraints...");
     new ConstraintSolver(TRNIAnalyzer.store, TRNIAnalyzer.cs, errorCollector).solve();

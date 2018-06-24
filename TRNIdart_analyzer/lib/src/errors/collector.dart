@@ -1,9 +1,9 @@
 import 'package:analyzer/error/error.dart';
 
 class ErrorCollector {
-  List<AnalysisError> errors;
+  Set<AnalysisError> errors;
 
   ErrorCollector() {
-   this.errors = new List<AnalysisError>();
+   this.errors = new Set<AnalysisError>();
   }
 }

@@ -35,9 +35,11 @@ class TRNIDriver implements AnalysisDriverGeneric {
 
   @override
   void addFile(String path) {
-    _addedFiles.add(path);
-    _dartFiles.add(path);
-    fileChanged(path);
+    if (_ownsFile(path)) {
+      _addedFiles.add(path);
+      _dartFiles.add(path);
+      fileChanged(path);
+    }
   }
 
   void fileChanged(String path) {
@@ -60,7 +62,6 @@ class TRNIDriver implements AnalysisDriverGeneric {
 
   @override
   Future<Null> performWork() async {
-    TRNIAnalyzer.reset();
     if (_changedFiles.isNotEmpty) {
       _changedFiles.clear();
       _filesToAnalyze.addAll(_dartFiles);
@@ -74,15 +75,17 @@ class TRNIDriver implements AnalysisDriverGeneric {
   }
 
   void generateAndThenSolveConstraints() async {
+    await TRNIAnalyzer.reset();
     for (final path in _addedFiles) {
       await pushConstraintErrors(path);
       await _filesToAnalyze.removeWhere((s) => s == path);
     }
     await pushTypeErrors();
+    await TRNIAnalyzer.reset();
   }
 
   Future<TRNIResult> resolveTRNIDart(String path) async {
-    if (!_ownsFile(path)) return new TRNIResult(new List());
+    if (!_ownsFile(path)) return new TRNIResult(new Set());
     final unit = await dartDriver.getUnitElement(path);
     if (unit.element == null) return null;
 
@@ -127,6 +130,6 @@ class TRNIDriver implements AnalysisDriverGeneric {
 }
 
 class TRNIResult {
-  List<AnalysisError> errors;
+  Set<AnalysisError> errors;
   TRNIResult(this.errors);
 }

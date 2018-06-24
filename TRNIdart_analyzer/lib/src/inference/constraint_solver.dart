@@ -23,6 +23,60 @@ class ConstraintSolver {
     this.cs.constraints.removeWhere((Constraint c) => (c is SubtypingConstraint) && ((c.left is Bot) || (c.right is Top)));
 
     /*
+    Then, we reduce the case when we have x <: y and y <: x. To to this, we look
+    the store:
+
+    - if x and y are in the store, then we replace y for x in the store and in every
+      constraint, and delete both constraints x <: y and y <: x.
+
+    - if x is in the store and not y, then we replace y for x in every constraint,
+      and delete both constraints. We do the opposite if y is in the store and not x.
+
+    - if x nor y are in the store, then we replace x for y in every constraint,
+      and delete both constraints.
+    */
+    Set<Constraint> removableConstraints = this.cs.constraints.where((c) {
+      return (this.cs.constraints.any((c2) => c.left == c2.right && c.right == c2.left));
+    }).toSet();
+
+    this.cs.constraints.removeWhere((c) => removableConstraints.contains(c));
+
+    for (Constraint c in removableConstraints) {
+      if (this.store.types.values.contains(c.left) && this.store.types.values.contains(c.right)) {
+        this.store.types.keys.forEach((int k) {
+          if (this.store.types[k] == c.right) this.store.types[k] = c.left;
+        });
+        this.cs.constraints.forEach((c1) {
+          c1.left = substitute(c1.left, c.right, c.left);
+          c1.right = substitute(c1.right, c.right, c.left);
+        });
+      }
+
+      else if (this.store.types.values.contains(c.left)) {
+        this.cs.constraints.forEach((c1) {
+          c1.left = substitute(c1.left, c.right, c.left);
+          c1.right = substitute(c1.right, c.right, c.left);
+        });
+      }
+      else {
+        this.cs.constraints.forEach((c1) {
+          c1.left = substitute(c1.left, c.left, c.right);
+          c1.right = substitute(c1.right, c.left, c.right);
+        });
+      }
+    }
+
+    /*
+    We check for invalid constraints, and remove them
+     */
+    this.cs.constraints.forEach((c) {
+      if (!c.isValid()) collector.errors.add(new SubtypingError(c));
+    });
+
+    this.cs.constraints.removeWhere((c) => !c.isValid());
+
+
+    /*
     We generate a map from the type variables to every constraint that has the
     type variable
      */
@@ -77,6 +131,18 @@ class ConstraintSolver {
     substituteWhereUntilEmpty((Constraint c) => c.isResolved() && c.left.isVariable() && groupedConstraints[c.left].length == 1);
     log.shout("\n groupedConstraints: \n${groupedConstraints}");
     log.shout("\n constraintSet: \n${this.cs.constraints}");
+
+    /*
+    We check for invalid constraints, and remove them
+     */
+    this.cs.constraints.forEach((c) {
+      if (!c.isValid()) collector.errors.add(new SubtypingError(c));
+    });
+
+    this.cs.constraints.removeWhere((c) => !c.isValid());
+    this.groupedConstraints.values.forEach((s) {
+      s.removeWhere((c) => !c.isValid());
+    });
 
     /*
     Now we reduce the groups in the groupedConstraints
@@ -145,6 +211,10 @@ class ConstraintSolver {
         IType right = substitute(source.rightSide, target, newType);
         return new ArrowType(left.toList(), right);
       }
+      else if (source is FieldType) {
+        IType right = substitute(source.rightSide, target, newType);
+        return new FieldType(right);
+      }
       else if (source is Top) return source;
       else if (source is Bot) return source;
       else if (source is ObjectType) {
@@ -177,12 +247,23 @@ class ConstraintSolver {
   void reduceConstraints(Set<Constraint> set) {
     this.cs.constraints.removeWhere((c) => set.contains(c));
     Constraint newConstraint = set.reduce((c1,c2) {
+      if (!(c1.right is ObjectType)) {
+        log.shout("Hubo un error al intentar reducir ${c1} pues su lado derecho es variable");
+        collector.errors.add(new SubtypingError(c1));
+        return c2;
+      }
+      if (!(c2.right is ObjectType)) {
+        log.shout("Hubo un error al intentar reducir ${c2} pues su lado derecho es variable");
+        collector.errors.add(new SubtypingError(c2));
+        return c1;
+      }
       if (!c1.isValid()) {
-        // TODO agregar error a errorCollector
         log.shout("Hubo un error pues ${c1} no es válida");
+        collector.errors.add(new SubtypingError(c1));
       }
       if (!c2.isValid()) {
         log.shout("Hubo un error pues ${c2} no es válida");
+        collector.errors.add(new SubtypingError(c2));
       }
       return meetConstraint(c1, c2);
     });
