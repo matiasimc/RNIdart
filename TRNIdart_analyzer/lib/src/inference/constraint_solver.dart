@@ -1,5 +1,4 @@
 import 'package:TRNIdart_analyzer/TRNIdart_analyzer.dart';
-import 'package:tuple/tuple.dart';
 
 class ConstraintSolver {
   final Logger log = new Logger("ConstraintSolver");
@@ -84,7 +83,6 @@ class ConstraintSolver {
     groupedConstraints = new Map();
     for (Constraint c in this.cs.constraints) {
       IType left = c.left;
-      IType right = c.right;
       if (left is TVar) {
         if (!groupedConstraints.containsKey(left)) groupedConstraints[left] = new Set<Constraint>();
         groupedConstraints[left].add(c);
@@ -179,6 +177,20 @@ class ConstraintSolver {
     store.types.forEach((i, t) {
       if (groupedConstraints.containsKey(t) && groupedConstraints[t].length == 1 && groupedConstraints[t].first.isResolved())
         store.types[i] = groupedConstraints[t].first.right;
+    });
+
+    /*
+    We do a final look in the store to generate the "INFO" errors to acknowledge
+    the user about the inference result.
+     */
+
+    store.elements.forEach((e,i) {
+      ErrorLocation location = new ErrorLocation(e.source, e.nameLength, e.nameOffset);
+      if (store.getType(e).isVariable()) collector.errors.add(new UnableToResolveError(location));
+      else {
+        if (!AnnotationHelper.elementHasDeclared(e))
+          collector.errors.add(new InferredFacetInfo(location, store.getType(e)));
+      }
     });
 
   }

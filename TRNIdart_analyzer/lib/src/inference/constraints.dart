@@ -1,5 +1,4 @@
 import 'package:TRNIdart_analyzer/TRNIdart_analyzer.dart';
-import 'dart:collection';
 
 abstract class Constraint {
   /*

@@ -1,6 +1,5 @@
 import 'package:TRNIdart_analyzer/TRNIdart_analyzer.dart';
 import 'package:analyzer/error/error.dart';
-import 'package:front_end/src/base/source.dart';
 
 class SubtypingError extends AnalysisError {
   Constraint c;
@@ -9,6 +8,57 @@ class SubtypingError extends AnalysisError {
 
   @override
   bool operator ==(Object o) => o is SubtypingError && o.c == this.c;
+}
+
+class InferredFacetInfo extends AnalysisError {
+  ErrorLocation location;
+  ObjectType facetType;
+  InferredFacetInfo(this.location, this.facetType) : super(location.source, location.offset, location.length, new InferredFacetErrorCode(facetType));
+}
+
+class UnableToResolveError extends AnalysisError {
+  ErrorLocation location;
+  UnableToResolveError(this.location) : super(location.source, location.offset, location.length, new UnableToResolveErrorCode("Please provide facet declarations to help the inference algorithm."));
+
+}
+
+class UnableToResolveErrorCode implements ErrorCode {
+  final String name = "Unresolved facet";
+  String message;
+  final String correction;
+
+  UnableToResolveErrorCode([this.correction]) {
+    this.message = "The inference could not resolve the type for this element.";
+  }
+
+  @override
+  ErrorSeverity get errorSeverity => ErrorSeverity.ERROR;
+
+  @override
+  ErrorType get type => ErrorType.COMPILE_TIME_ERROR;
+
+  @override
+  String get uniqueName => this.name;
+}
+
+class InferredFacetErrorCode implements ErrorCode {
+  final String name = "Facet info";
+  String message;
+  final String correction;
+  ObjectType facetType;
+
+  InferredFacetErrorCode(this.facetType, [String this.correction]) {
+    this.message = "The inferred facet is: ${facetType}";
+  }
+
+  @override
+  ErrorSeverity get errorSeverity => ErrorSeverity.INFO;
+
+  @override
+  ErrorType get type => ErrorType.HINT;
+
+  @override
+  String get uniqueName => this.name;
 }
 
 class SubtypingErrorCode implements ErrorCode {

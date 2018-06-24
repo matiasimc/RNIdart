@@ -2,8 +2,6 @@ import 'package:TRNIdart_analyzer/TRNIdart_analyzer.dart';
 import 'package:analyzer/analyzer.dart' show AnalysisError, CompilationUnit;
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/error/error.dart';
-import 'package:analyzer/src/generated/engine.dart' hide Logger;
-import 'package:analyzer/src/generated/source.dart';
 
 import 'dart:io';
 
@@ -21,10 +19,10 @@ class TRNIAnalyzer {
   static void setUpLogger() {
     File f = new File("TRNI-log.txt");
     f.createSync();
-    f.writeAsStringSync("\n\n==== Analysis starts on ${new DateTime.now().toIso8601String()} ====\n\n", mode: FileMode.APPEND);
+    f.writeAsStringSync("\n\n==== Analysis starts on ${new DateTime.now().toIso8601String()} ====\n\n", mode: FileMode.append);
     Logger.root.level = Level.ALL;
     Logger.root.onRecord.listen((LogRecord rec) {
-      f.writeAsStringSync('${rec.level.name}: ${rec.time} ${rec.loggerName} -> ${rec.message}\n', mode: FileMode.APPEND);
+      f.writeAsStringSync('${rec.level.name}: ${rec.time} ${rec.loggerName} -> ${rec.message}\n', mode: FileMode.append);
     });
   }
 

@@ -1,6 +1,4 @@
 import 'package:TRNIdart_analyzer/TRNIdart_analyzer.dart';
-import 'dart:io';
-import 'package:path/path.dart' as path;
 import 'package:analyzer/src/generated/source.dart';
 
 
@@ -153,7 +151,7 @@ class ClassMemberVisitor extends SimpleAstVisitor {
     generate a DeclaredConstraint for the type variable and the declared type. Else,
     we just add the type variable.
      */
-    List<IType> left = processParametersType(node);
+    processParametersType(node);
     /*
     The same goes for the return type. Then, we create the ArrowType.
      */
@@ -187,7 +185,7 @@ class ClassMemberVisitor extends SimpleAstVisitor {
     ErrorLocation location = new ErrorLocation(this.source, node.length, node.offset);
     log.shout("Visiting constructor");
     if (!store.hasElement(node.element)) {
-      List<IType> left = processParametersTypeForConstructor(node);
+      processParametersTypeForConstructor(node);
       IType right = processReturnType(node);
       cs.addConstraint(new SubtypingConstraint(store.getTypeOrVariable(node.element, new Bot()), right, location));
     }

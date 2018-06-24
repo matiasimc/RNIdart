@@ -12,4 +12,7 @@ class AnnotationHelper {
     if (index == -1) return null;
     else return node.metadata.elementAt(index);
   }
+
+  static bool elementHasDeclared(Element e) =>
+    e.metadata.any((ElementAnnotation e) => e.toSource().contains("declared"));
 }
