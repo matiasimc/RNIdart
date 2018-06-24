@@ -183,9 +183,13 @@ class ClassMemberVisitor extends SimpleAstVisitor {
   @override
   visitFieldDeclaration(FieldDeclaration node) {
     log.shout("Visiting field(s) ${node.fields.variables.join(',')}");
-    if (store.hasElement(node.element)) return;
     IType right = processReturnType(node);
-    store.addElement(node.element, new Bot(), right);
+    for (VariableDeclaration v in node.fields.variables) {
+      log.shout("Element of this shit ${v.name.bestElement} ${v.name.bestElement.runtimeType}");
+      if (!store.hasElement(v.name.bestElement)) store.addElement(v.name.bestElement, new Bot(), right);
+      else cs.addConstraint(new SubtypingConstraint(store.getType(v.name.bestElement), right));
+      v.initializer.accept(new MethodBodyVisitor(store, cs, right));
+    }
   }
 
   @override
@@ -232,8 +236,71 @@ class MethodBodyVisitor extends RecursiveAstVisitor {
   }
 
   @override
+  visitPrefixedIdentifier(PrefixedIdentifier node) {
+    log.shout("Found field invocation on variable ${node}");
+    log.shout("element of this shit ${node.identifier.bestElement} ${node.identifier.bestElement.runtimeType}");
+    /*
+    The target node of prefixedIndentifier is always a variable.
+     */
+    IType target = this.store.getTypeOrVariable(node.prefix.bestElement, new Bot());
+
+    IType fieldReturn = this.store.getTypeOrVariable(node.bestElement, new Bot());
+    IType variableReturn = this.store.getTypeVariable(new Bot());
+    this.cs.addConstraint(new SubtypingConstraint(fieldReturn, variableReturn));
+
+    FieldType fieldSignature = new FieldType(variableReturn);
+
+    IType callType = new ObjectType({node.bestElement.name: fieldSignature});
+
+    this.cs.addConstraint(new SubtypingConstraint(target, callType));
+
+    /*
+    no need to check for chainedCalls because this field call only occurs on variables.
+     */
+
+    chainedCallParentType = target;
+
+
+    return super.visitPrefixedIdentifier(node);
+  }
+
+  @override
+  visitPropertyAccess(PropertyAccess node) {
+    log.shout("Found field invocation on object ${node}");
+
+    log.shout("element of this shit ${node.propertyName.bestElement} ${node.propertyName.bestElement.runtimeType}");
+
+    /*
+    The target node of prefixedIndentifier is always a variable.
+     */
+    IType target = processExpression(node.target);
+
+    IType fieldReturn = this.store.getTypeOrVariable(node.propertyName.bestElement, new Bot());
+    IType variableReturn = this.store.getTypeVariable(new Bot());
+    this.cs.addConstraint(new SubtypingConstraint(fieldReturn, variableReturn));
+
+    FieldType fieldSignature = new FieldType(variableReturn);
+
+    IType callType = new ObjectType({node.propertyName.name: fieldSignature});
+
+    this.cs.addConstraint(new SubtypingConstraint(target, callType));
+    if (node.parent is MethodInvocation || node.parent is PrefixedIdentifier || node.parent is PropertyAccess) {
+      // y <: chainedCallParentType
+      this.cs.addConstraint(new SubtypingConstraint(fieldSignature.rightSide, chainedCallParentType));
+    }
+    /*
+    Finally, we update the variable that store the necessary type for chained
+    method calls.
+     */
+    chainedCallParentType = target;
+
+    return super.visitPropertyAccess(node);
+  }
+
+  @override
   visitMethodInvocation(MethodInvocation node) {
     log.shout("Found method invocation ${node}");
+
     /*
     First, we identify the target node. If it's a variable, we get it from the
     store. Else, we generate a type variable.
@@ -274,7 +341,7 @@ class MethodBodyVisitor extends RecursiveAstVisitor {
         {node.methodName.toString(): methodSignature});
     // TVar(i) <: {m: x -> y}
     this.cs.addConstraint(new SubtypingConstraint(targetType, callType));
-    if (node.parent is MethodInvocation || node.parent is PrefixedIdentifier) {
+    if (node.parent is MethodInvocation || node.parent is PrefixedIdentifier || node.parent is PropertyAccess) {
       // y <: chainedCallParentType
       this.cs.addConstraint(new SubtypingConstraint(methodSignature.rightSide, chainedCallParentType));
     }
@@ -288,8 +355,9 @@ class MethodBodyVisitor extends RecursiveAstVisitor {
 
   @override
   visitReturnStatement(ReturnStatement node) {
-    // TODO this constraint should be expresion <: returnType
-    this.cs.addConstraint(new SubtypingConstraint(this.returnType, processExpression(node.expression)));
+    // this constraint should be expresion <: returnType
+    this.cs.addConstraint(new SubtypingConstraint(processExpression(node.expression), this.returnType));
+    // this.cs.addConstraint(new SubtypingConstraint(this.returnType, processExpression(node.expression)));
     return super.visitReturnStatement(node);
   }
 }

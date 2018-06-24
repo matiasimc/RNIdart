@@ -29,7 +29,7 @@ class TVar extends IType {
   bool isVariable() => true;
 
   @override
-  bool subtypeOf(IType t) => false;
+  bool subtypeOf(IType t) => true;
 }
 
 class ObjectType extends IType {
@@ -85,6 +85,10 @@ class ObjectType extends IType {
     }
     else return false;
   }
+
+  bool hasMember(String label, ArrowType arrowType) {
+    return this.members.containsKey(label) && this.members[label] == arrowType;
+  }
 }
 
 class ArrowType extends IType {
@@ -130,6 +134,15 @@ class ArrowType extends IType {
   }
 }
 
+class FieldType extends ArrowType {
+  IType rightSide;
+
+  FieldType(this.rightSide) : super([], rightSide);
+
+  @override
+  String toString() => "${rightSide}";
+}
+
 class Top extends ObjectType {
   @override
   bool isConcrete() => true;
@@ -144,6 +157,9 @@ class Top extends ObjectType {
 
   @override
   bool subtypeOf(IType t) => t is Top;
+
+  @override
+  bool hasMember(String label, ArrowType arrowType) => false;
 }
 
 class Bot extends ObjectType {
@@ -160,4 +176,7 @@ class Bot extends ObjectType {
 
   @override
   bool subtypeOf(IType t) => true;
+
+  @override
+  bool hasMember(String label, ArrowType arrowType) => true;
 }
