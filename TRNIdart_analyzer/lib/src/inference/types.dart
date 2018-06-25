@@ -76,6 +76,7 @@ class ObjectType extends IType {
   bool subtypeOf(IType t) {
     if (t is TVar) return true;
     if (t is ObjectType) {
+      if (t is Bot) return false;
       for (String label in t.members.keys) {
         if (this.members.containsKey(label)) {
           if (!this.members[label].subtypeOf(t.members[label])) return false;

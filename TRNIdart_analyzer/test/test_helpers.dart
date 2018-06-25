@@ -85,9 +85,7 @@ class inferred {
   IType checkTypeForSourceWithQuery(Source original, String query) {
     var resolvedUnit = context.resolveCompilationUnit(original, context.computeLibraryElement(original));
     TRNIAnalyzer.computeConstraints(resolvedUnit);
-    print(TRNIAnalyzer.cs.constraints);
     TRNIAnalyzer.computeTypes();
-    print(TRNIAnalyzer.store.types);
     Element element = TRNIAnalyzer.store.elements.keys.firstWhere((e) => e.toString() == query);
     if (element == null) return null;
     return TRNIAnalyzer.store.getType(element);

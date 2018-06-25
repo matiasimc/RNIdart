@@ -90,7 +90,8 @@ class TRNIDriver implements AnalysisDriverGeneric {
     if (unit.element == null) return null;
 
     final unitAst = unit.element.computeNode();
-    return new TRNIResult(TRNIAnalyzer.computeConstraints(unitAst));
+    TRNIAnalyzer.computeConstraints(unitAst);
+    return new TRNIResult(TRNIAnalyzer.errorCollector.errors);
   }
 
   Future pushConstraintErrors(String path) async {
@@ -102,7 +103,8 @@ class TRNIDriver implements AnalysisDriverGeneric {
   }
 
   Future pushTypeErrors() async {
-    final result = await TRNIAnalyzer.computeTypes();
+    await TRNIAnalyzer.computeTypes();
+    final result = TRNIAnalyzer.errorCollector.errors;
     if (result == null) return;
     for (final path in _addedFiles) {
       try {

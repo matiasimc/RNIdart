@@ -22,6 +22,31 @@ class UnableToResolveError extends AnalysisError {
 
 }
 
+class UndefinedFacetError extends AnalysisError {
+  Element e;
+  String facetName;
+  UndefinedFacetError(this.e, this.facetName) : super(e.source, e.computeNode().offset, 9+4+facetName.length, new UndefinedFacetErrorCode(facetName, "Please create the abstract class."));
+}
+
+class UndefinedFacetErrorCode implements ErrorCode {
+  final String name = "Undefined facet";
+  String message;
+  final String correction;
+
+  UndefinedFacetErrorCode(facetName, [this.correction]) {
+    this.message = "The declared facet ${facetName} is not defined.";
+  }
+
+  @override
+  ErrorSeverity get errorSeverity => ErrorSeverity.WARNING;
+
+  @override
+  ErrorType get type => ErrorType.STATIC_WARNING;
+
+  @override
+  String get uniqueName => this.name;
+}
+
 class UnableToResolveErrorCode implements ErrorCode {
   final String name = "Unresolved facet";
   String message;
@@ -68,7 +93,14 @@ class SubtypingErrorCode implements ErrorCode {
   Constraint constraint;
 
   SubtypingErrorCode(this.constraint, [String this.correction]) {
+    AstNode node = constraint.location.node;
     this.message = "The subtyping relation ${constraint} is invalid.";
+    if (node is MethodInvocation) {
+      this.message = "The method ${node.methodName} does not belong to the facet ${constraint.left}.";
+    }
+    if (node is ReturnStatement) {
+      this.message = "The return expression facet ${constraint.left} is not a subtype of the return facet ${constraint.right}.";
+    }
   }
 
   @override

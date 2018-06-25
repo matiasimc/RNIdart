@@ -8,8 +8,9 @@ class CompilationUnitVisitor extends SimpleAstVisitor {
   ConstraintSet cs;
   Map<String, IType> declaredStore;
   Source source;
+  ErrorCollector collector;
 
-  CompilationUnitVisitor(this.store, this.cs, this.declaredStore, this.source);
+  CompilationUnitVisitor(this.store, this.cs, this.declaredStore, this.collector, this.source);
 
   @override
   visitCompilationUnit(CompilationUnit node) {
@@ -18,7 +19,7 @@ class CompilationUnitVisitor extends SimpleAstVisitor {
 
   @override
   visitClassDeclaration(ClassDeclaration node) {
-    ErrorLocation location = new ErrorLocation(this.source, node.length, node.offset);
+    ErrorLocation location = new ErrorLocation(this.source, node.length, node.offset, node);
     if (node.isAbstract) {
       DeclaredParser parser = new DeclaredParser();
       node.accept(parser);
@@ -30,7 +31,7 @@ class CompilationUnitVisitor extends SimpleAstVisitor {
       }
     }
     log.shout("Visiting class ${node.name}");
-    node.members.accept(new ClassMemberVisitor(this.store, this.cs, this.declaredStore, this.source));
+    node.members.accept(new ClassMemberVisitor(this.store, this.cs, this.declaredStore, this.collector, this.source));
   }
 
 }
@@ -59,11 +60,12 @@ class ClassMemberVisitor extends SimpleAstVisitor {
   ConstraintSet cs;
   Map<String, IType> declaredStore;
   Source source;
+  ErrorCollector collector;
 
-  ClassMemberVisitor(this.store, this.cs, this.declaredStore, this.source);
+  ClassMemberVisitor(this.store, this.cs, this.declaredStore, this.collector, this.source);
 
   IType processReturnType(ClassMember node) {
-    ErrorLocation location = new ErrorLocation(this.source, node.length, node.offset);
+    ErrorLocation location = new ErrorLocation(this.source, node.length, node.offset, node);
     Annotation a = AnnotationHelper.getDeclared(node);
     IType right;
     if (a != null) {
@@ -75,11 +77,13 @@ class ClassMemberVisitor extends SimpleAstVisitor {
         right = tvar;
       }
       else {
-        IType tvar1 = this.store.getTypeVariable(new Bot());
-        this.declaredStore[facet] = tvar1;
-        IType tvar2 = this.store.getTypeVariable(new Bot());
-        this.cs.addConstraint(new DeclaredConstraint(tvar2, tvar1, location));
-        right = tvar2;
+          collector.errors.add(new UndefinedFacetError(node.element, facet));
+          IType tvar1 = this.store.getTypeVariable(new Bot());
+          this.declaredStore[facet] = tvar1;
+          IType tvar2 = this.store.getTypeVariable(new Bot());
+          this.cs.addConstraint(new DeclaredConstraint(tvar2, tvar1, location));
+          right = tvar2;
+
       }
     }
     else right = store.getTypeVariable(new Bot());
@@ -87,7 +91,7 @@ class ClassMemberVisitor extends SimpleAstVisitor {
   }
 
   List<IType> processParametersType(MethodDeclaration node) {
-    ErrorLocation location = new ErrorLocation(this.source, node.length, node.offset);
+    ErrorLocation location = new ErrorLocation(this.source, node.length, node.offset, node);
     List<IType> left = node.element.parameters.map((p) {
       Annotation a = AnnotationHelper.getDeclaredForParameter(p.computeNode());
       if (a == null) {
@@ -103,6 +107,7 @@ class ClassMemberVisitor extends SimpleAstVisitor {
           return tvar;
         }
         else {
+          collector.errors.add(new UndefinedFacetError(p, facet));
           IType tvar1 = this.store.getTypeVariable(new Top());
           this.declaredStore[facet] = tvar1;
           IType tvar2 = this.store.getTypeOrVariable(p, new Top());
@@ -115,7 +120,7 @@ class ClassMemberVisitor extends SimpleAstVisitor {
   }
 
   List<IType> processParametersTypeForConstructor(ConstructorDeclaration node) {
-    ErrorLocation location = new ErrorLocation(this.source, node.length, node.offset);
+    ErrorLocation location = new ErrorLocation(this.source, node.length, node.offset, node);
     List<IType> left = node.element.parameters.map((p) {
       Annotation a = AnnotationHelper.getDeclaredForParameter(p.computeNode());
       if (a == null) {
@@ -144,7 +149,7 @@ class ClassMemberVisitor extends SimpleAstVisitor {
 
   @override
   visitMethodDeclaration(MethodDeclaration node) {
-    ErrorLocation location = new ErrorLocation(this.source, node.length, node.offset);
+    ErrorLocation location = new ErrorLocation(this.source, node.length, node.offset, node);
     log.shout("Visiting method ${node.name}");
     /*
     First, we look for declared annotations in parameters. If exists, then we
@@ -182,7 +187,7 @@ class ClassMemberVisitor extends SimpleAstVisitor {
 
   @override
   visitConstructorDeclaration(ConstructorDeclaration node) {
-    ErrorLocation location = new ErrorLocation(this.source, node.length, node.offset);
+    ErrorLocation location = new ErrorLocation(this.source, node.length, node.offset, node);
     log.shout("Visiting constructor");
     if (!store.hasElement(node.element)) {
       processParametersTypeForConstructor(node);
@@ -227,7 +232,7 @@ class MethodBodyVisitor extends RecursiveAstVisitor {
 
   @override
   visitMethodInvocation(MethodInvocation node) {
-    ErrorLocation location = new ErrorLocation(this.source, node.length, node.offset);
+    ErrorLocation location = new ErrorLocation(this.source, node.length, node.offset, node);
     log.shout("Found method invocation ${node}");
     /*
     First, we identify the target node. If it's a variable, we get it from the
@@ -246,7 +251,7 @@ class MethodBodyVisitor extends RecursiveAstVisitor {
     IType methodReturn;
     IType variableReturn;
     List<IType> variableParameters;
-    if (node.staticInvokeType.element.library.isDartCore && !(node.parent is MethodInvocation || node.parent is PrefixedIdentifier)) {
+    if (node.staticInvokeType.element.library != null && node.staticInvokeType.element.library.isDartCore && !(node.parent is MethodInvocation || node.parent is PrefixedIdentifier)) {
       variableReturn = new Bot();
     }
     else {
@@ -258,7 +263,7 @@ class MethodBodyVisitor extends RecursiveAstVisitor {
 
     variableParameters = node.argumentList.arguments.map((a) {
       IType parType;
-      if (node.staticInvokeType.element.library.isDartCore) {
+      if (node.staticInvokeType.element.library != null && node.staticInvokeType.element.library.isDartCore) {
         parType = new Top();
       }
       else {
@@ -294,10 +299,8 @@ class MethodBodyVisitor extends RecursiveAstVisitor {
 
   @override
   visitReturnStatement(ReturnStatement node) {
-    ErrorLocation location = new ErrorLocation(this.source, node.length, node.offset);
-    // TODO this constraint should be expresion <: returnType
+    ErrorLocation location = new ErrorLocation(this.source, node.length, node.offset, node);
     this.cs.addConstraint(new SubtypingConstraint(processExpression(node.expression), this.returnType, location));
-    //this.cs.addConstraint(new SubtypingConstraint(this.returnType, processExpression(node.expression), location));
     return super.visitReturnStatement(node);
   }
 }

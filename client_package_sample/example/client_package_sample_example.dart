@@ -14,7 +14,7 @@ class Foo {
 }
 
 class Bar {
-  @declared("Top") String getBaz() {
+  @declared("StringToString") String getBaz() {
     return "asd";
   }
 }
