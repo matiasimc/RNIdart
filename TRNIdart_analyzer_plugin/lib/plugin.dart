@@ -26,6 +26,7 @@ import 'dart:io';
 I used raimilcruz/secdart repo as a guide to implement this and other classes
  */
 class TRNIDartPlugin extends ServerPlugin with FixesMixin {
+  ContextRoot root;
   TRNIDartPlugin(ResourceProvider provider) : super(provider);
 
 
@@ -43,6 +44,7 @@ class TRNIDartPlugin extends ServerPlugin with FixesMixin {
 
   @override
   AnalysisDriverGeneric createAnalysisDriver(ContextRoot contextRoot) {
+    this.root = contextRoot;
     final root = new analyzer.ContextRoot(contextRoot.root, contextRoot.exclude)
       ..optionsFilePath = contextRoot.optionsFile;
 
@@ -109,7 +111,7 @@ abstract class StringToString {
 
   @override
   List<FixContributor> getFixContributors(String path) {
-    return <FixContributor>[new TRNIFixContributor(path)];
+    return <FixContributor>[new TRNIFixContributor(path, this.root.root+"/sec.dart")];
   }
 
   @override

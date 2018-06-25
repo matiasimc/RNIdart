@@ -7,8 +7,9 @@ import 'package:analyzer_plugin/utilities/fixes/fixes.dart';
 
 class TRNIFixContributor implements FixContributor {
   String path;
+  String secFile;
 
-  TRNIFixContributor(this.path);
+  TRNIFixContributor(this.path, this.secFile);
 
 
   @override

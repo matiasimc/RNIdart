@@ -11,14 +11,14 @@ class SubtypingError extends AnalysisError {
 }
 
 class InferredFacetInfo extends AnalysisError {
-  ErrorLocation location;
+  Element e;
   ObjectType facetType;
-  InferredFacetInfo(this.location, this.facetType) : super(location.source, location.offset, location.length, new InferredFacetErrorCode(facetType));
+  InferredFacetInfo(this.e, this.facetType) : super(e.source, e.nameOffset, e.nameLength, new InferredFacetErrorCode(facetType));
 }
 
 class UnableToResolveError extends AnalysisError {
-  ErrorLocation location;
-  UnableToResolveError(this.location) : super(location.source, location.offset, location.length, new UnableToResolveErrorCode("Please provide facet declarations to help the inference algorithm."));
+  Element e;
+  UnableToResolveError(this.e) : super(e.source, e.nameOffset, e.nameLength, new UnableToResolveErrorCode("Please provide facet declarations to help the inference algorithm."));
 
 }
 

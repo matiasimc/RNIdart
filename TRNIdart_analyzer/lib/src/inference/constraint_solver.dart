@@ -185,11 +185,10 @@ class ConstraintSolver {
      */
 
     store.elements.forEach((e,i) {
-      ErrorLocation location = new ErrorLocation(e.source, e.nameLength, e.nameOffset);
-      if (store.getType(e).isVariable()) collector.errors.add(new UnableToResolveError(location));
+      if (store.getType(e).isVariable()) collector.errors.add(new UnableToResolveError(e));
       else {
         if (!AnnotationHelper.elementHasDeclared(e))
-          collector.errors.add(new InferredFacetInfo(location, store.getType(e)));
+          collector.errors.add(new InferredFacetInfo(e, store.getType(e)));
       }
     });
 
