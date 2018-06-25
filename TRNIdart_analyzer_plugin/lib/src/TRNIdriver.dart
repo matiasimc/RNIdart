@@ -105,9 +105,14 @@ class TRNIDriver implements AnalysisDriverGeneric {
     final result = await TRNIAnalyzer.computeTypes();
     if (result == null) return;
     for (final path in _addedFiles) {
-      final filter = result.where((error) => (error.source.exists()) && error.source.uri.path == path).toList();
-      final lineInfo = new LineInfo.fromContent(getFileContent(path));
-      notificationManager.recordAnalysisErrors(path, lineInfo, filter);
+      try {
+        final filter = result.where((error) => (error.source.exists()) && error.source.uri.path == path).toList();
+        final lineInfo = new LineInfo.fromContent(getFileContent(path));
+        notificationManager.recordAnalysisErrors(path, lineInfo, filter);
+      }
+      catch(e) {
+
+      }
     }
   }
 

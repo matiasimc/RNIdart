@@ -246,13 +246,24 @@ class MethodBodyVisitor extends RecursiveAstVisitor {
     IType methodReturn;
     IType variableReturn;
     List<IType> variableParameters;
-    methodReturn = this.store.getTypeOrVariable(
-        node.staticInvokeType.element, new Bot());
-    variableReturn = this.store.getTypeVariable(new Bot());
+    if (node.staticInvokeType.element.library.isDartCore && !(node.parent is MethodInvocation || node.parent is PrefixedIdentifier)) {
+      variableReturn = new Bot();
+    }
+    else {
+      variableReturn = this.store.getTypeVariable(new Bot());
+    }
+    methodReturn = this.store.getTypeOrVariable(node.staticInvokeType.element, new Bot());
+
     this.cs.addConstraint(new SubtypingConstraint(methodReturn, variableReturn, location));
 
     variableParameters = node.argumentList.arguments.map((a) {
-      IType parType = this.store.getTypeOrVariable(a.bestParameterElement, new Top());
+      IType parType;
+      if (node.staticInvokeType.element.library.isDartCore) {
+        parType = new Top();
+      }
+      else {
+        parType = this.store.getTypeOrVariable(a.bestParameterElement, new Top());
+      }
       IType argType = processExpression(a);
       this.cs.addConstraint(new SubtypingConstraint(argType, parType, location));
       return parType;

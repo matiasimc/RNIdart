@@ -74,6 +74,7 @@ class ObjectType extends IType {
 
   @override
   bool subtypeOf(IType t) {
+    if (t is TVar) return true;
     if (t is ObjectType) {
       for (String label in t.members.keys) {
         if (this.members.containsKey(label)) {
@@ -156,7 +157,7 @@ class Top extends ObjectType {
   bool operator ==(Object o) => o is Top;
 
   @override
-  bool subtypeOf(IType t) => t is Top;
+  bool subtypeOf(IType t) => t is Top || t is TVar;
 
   @override
   bool hasMember(String label, ArrowType arrowType) => false;

@@ -4,6 +4,10 @@ SubtypingConstraint meetConstraint(Constraint c1, Constraint c2) {
   return new SubtypingConstraint(c1.left, meet(c1.right, c2.right), c1.location);
 }
 
+SubtypingConstraint joinConstraint(Constraint c1, Constraint c2) {
+  return new SubtypingConstraint(join(c1.left, c2.left), c1.right, c1.location);
+}
+
 ObjectType meet(ObjectType t1, ObjectType t2) {
   if (t1 is Bot) return t1;
   if (t2 is Bot) return t2;
