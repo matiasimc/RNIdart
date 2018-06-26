@@ -238,27 +238,31 @@ class MethodBodyVisitor extends RecursiveAstVisitor {
   @override
   visitPrefixedIdentifier(PrefixedIdentifier node) {
     log.shout("Found field invocation on variable ${node}");
-    log.shout("element of this shit ${node.identifier.bestElement} ${node.identifier.bestElement.runtimeType}");
-    /*
-    The target node of prefixedIndentifier is always a variable.
+    Element propertyAccessor = node.identifier.bestElement;
+    if (propertyAccessor is PropertyAccessorElement) {
+      log.shout("element of this node ${node.identifier.bestElement} is ${propertyAccessor.variable} ${propertyAccessor.variable.runtimeType}");
+      /*
+      The target node of prefixedIndentifier is always a variable.
      */
-    IType target = this.store.getTypeOrVariable(node.prefix.bestElement, new Bot());
+      IType target = this.store.getTypeOrVariable(node.prefix.bestElement, new Bot());
 
-    IType fieldReturn = this.store.getTypeOrVariable(node.bestElement, new Bot());
-    IType variableReturn = this.store.getTypeVariable(new Bot());
-    this.cs.addConstraint(new SubtypingConstraint(fieldReturn, variableReturn));
+      IType fieldReturn = this.store.getTypeOrVariable(propertyAccessor.variable, new Bot());
+      IType variableReturn = this.store.getTypeVariable(new Bot());
+      this.cs.addConstraint(new SubtypingConstraint(fieldReturn, variableReturn));
 
-    FieldType fieldSignature = new FieldType(variableReturn);
+      FieldType fieldSignature = new FieldType(variableReturn);
 
-    IType callType = new ObjectType({node.bestElement.name: fieldSignature});
+      IType callType = new ObjectType({node.bestElement.name: fieldSignature});
 
-    this.cs.addConstraint(new SubtypingConstraint(target, callType));
+      this.cs.addConstraint(new SubtypingConstraint(target, callType));
 
-    /*
+      /*
     no need to check for chainedCalls because this field call only occurs on variables.
      */
 
-    chainedCallParentType = target;
+      chainedCallParentType = target;
+    }
+
 
 
     return super.visitPrefixedIdentifier(node);
@@ -268,31 +272,34 @@ class MethodBodyVisitor extends RecursiveAstVisitor {
   visitPropertyAccess(PropertyAccess node) {
     log.shout("Found field invocation on object ${node}");
 
-    log.shout("element of this shit ${node.propertyName.bestElement} ${node.propertyName.bestElement.runtimeType}");
+    Element propertyAccessor = node.propertyName.bestElement;
+    if (propertyAccessor is PropertyAccessorElement) {
+      log.shout("element of this node ${node.propertyName.bestElement} is ${propertyAccessor.variable} ${propertyAccessor.variable.runtimeType}");
 
-    /*
-    The target node of prefixedIndentifier is always a variable.
+      /*
+      The target node of prefixedIndentifier is always a variable.
      */
-    IType target = processExpression(node.target);
+      IType target = processExpression(node.target);
 
-    IType fieldReturn = this.store.getTypeOrVariable(node.propertyName.bestElement, new Bot());
-    IType variableReturn = this.store.getTypeVariable(new Bot());
-    this.cs.addConstraint(new SubtypingConstraint(fieldReturn, variableReturn));
+      IType fieldReturn = this.store.getTypeOrVariable(propertyAccessor.variable, new Bot());
+      IType variableReturn = this.store.getTypeVariable(new Bot());
+      this.cs.addConstraint(new SubtypingConstraint(fieldReturn, variableReturn));
 
-    FieldType fieldSignature = new FieldType(variableReturn);
+      FieldType fieldSignature = new FieldType(variableReturn);
 
-    IType callType = new ObjectType({node.propertyName.name: fieldSignature});
+      IType callType = new ObjectType({node.propertyName.name: fieldSignature});
 
-    this.cs.addConstraint(new SubtypingConstraint(target, callType));
-    if (node.parent is MethodInvocation || node.parent is PrefixedIdentifier || node.parent is PropertyAccess) {
-      // y <: chainedCallParentType
-      this.cs.addConstraint(new SubtypingConstraint(fieldSignature.rightSide, chainedCallParentType));
-    }
-    /*
+      this.cs.addConstraint(new SubtypingConstraint(target, callType));
+      if (node.parent is MethodInvocation || node.parent is PrefixedIdentifier || node.parent is PropertyAccess) {
+        // y <: chainedCallParentType
+        this.cs.addConstraint(new SubtypingConstraint(fieldSignature.rightSide, chainedCallParentType));
+      }
+      /*
     Finally, we update the variable that store the necessary type for chained
     method calls.
      */
-    chainedCallParentType = target;
+      chainedCallParentType = target;
+    }
 
     return super.visitPropertyAccess(node);
   }
