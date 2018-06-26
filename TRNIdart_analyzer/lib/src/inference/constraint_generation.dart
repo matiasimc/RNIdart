@@ -77,12 +77,19 @@ class ClassMemberVisitor extends SimpleAstVisitor {
         right = tvar;
       }
       else {
+        /*
+        this try/catch is because the element of "node.element" may not exist
+        when typing the facet, due to this case: @declString foo...
+         */
+        try {
           collector.errors.add(new UndefinedFacetError(node.element, facet));
           IType tvar1 = this.store.getTypeVariable(new Bot());
           this.declaredStore[facet] = tvar1;
           IType tvar2 = this.store.getTypeVariable(new Bot());
           this.cs.addConstraint(new DeclaredConstraint(tvar2, tvar1, location));
           right = tvar2;
+        }
+        catch(e){}
 
       }
     }
@@ -107,12 +114,15 @@ class ClassMemberVisitor extends SimpleAstVisitor {
           return tvar;
         }
         else {
-          collector.errors.add(new UndefinedFacetError(p, facet));
-          IType tvar1 = this.store.getTypeVariable(new Top());
-          this.declaredStore[facet] = tvar1;
-          IType tvar2 = this.store.getTypeOrVariable(p, new Top());
-          this.cs.addConstraint(new DeclaredConstraint(tvar2, tvar1, location));
-          return tvar2;
+          try {
+            collector.errors.add(new UndefinedFacetError(p, facet));
+            IType tvar1 = this.store.getTypeVariable(new Top());
+            this.declaredStore[facet] = tvar1;
+            IType tvar2 = this.store.getTypeOrVariable(p, new Top());
+            this.cs.addConstraint(new DeclaredConstraint(tvar2, tvar1, location));
+            return tvar2;
+          }
+          catch(e) {}
         }
       }
     }).toList();
@@ -174,38 +184,58 @@ class ClassMemberVisitor extends SimpleAstVisitor {
     /*
     Finally, we process the method body.
      */
-    node.body.accept(new MethodBodyVisitor(this.store, this.cs, right, this.source));
+    node.body.accept(new BlockVisitor(this.store, this.cs, right, this.source, declaredStore, collector, new Bot()));
   }
 
   @override
   visitFieldDeclaration(FieldDeclaration node) {
     log.shout("Visiting field(s) ${node.fields.variables.join(',')}");
-    if (store.hasElement(node.element)) return;
+    ErrorLocation location = new ErrorLocation(this.source, node.length, node.offset, node);
     IType right = processReturnType(node);
-    store.addElement(node.element, new Bot(), right);
+    for (VariableDeclaration v in node.fields.variables) {
+      if (!store.hasElement(v.name.bestElement)) store.addElement(v.name.bestElement, new Bot(), right);
+      else {
+        cs.addConstraint(new SubtypingConstraint(store.getType(v.name.bestElement), right, location));
+        cs.addConstraint(new SubtypingConstraint(right, store.getType(v.name.bestElement), location));
+      }
+      // TODO generate constraint for the initialization
+      if (v.initializer != null) {
+        BlockVisitor visitor = new BlockVisitor(store, cs, right, source, declaredStore, collector, new Bot());
+        cs.addConstraint(new SubtypingConstraint(visitor.processExpression(v.initializer), right, location));
+        v.initializer.accept(visitor);
+      }
+    }
   }
 
   @override
   visitConstructorDeclaration(ConstructorDeclaration node) {
     ErrorLocation location = new ErrorLocation(this.source, node.length, node.offset, node);
     log.shout("Visiting constructor");
+    processParametersTypeForConstructor(node);
+    IType right = processReturnType(node);
     if (!store.hasElement(node.element)) {
-      processParametersTypeForConstructor(node);
-      IType right = processReturnType(node);
-      cs.addConstraint(new SubtypingConstraint(store.getTypeOrVariable(node.element, new Bot()), right, location));
+      store.addElement(node.element, new Bot(), right);
     }
+    else {
+      cs.addConstraint(new SubtypingConstraint(store.getType(node.element), right, location));
+      cs.addConstraint(new SubtypingConstraint(right, store.getType(node.element), location));
+    }
+    node.body.accept(new BlockVisitor(this.store, this.cs, right, this.source, this.declaredStore, this.collector, new Bot()));
   }
 }
 
-class MethodBodyVisitor extends RecursiveAstVisitor {
-  final Logger log = new Logger("MethodBodyVisitor");
+class BlockVisitor extends RecursiveAstVisitor {
+  final Logger log = new Logger("BlockVisitor");
   Store store;
   ConstraintSet cs;
   IType returnType;
   IType chainedCallParentType;
   Source source;
+  Map<String, IType> declaredStore;
+  ErrorCollector collector;
+  IType pc;
 
-  MethodBodyVisitor(this.store, this.cs, this.returnType, this.source);
+  BlockVisitor(this.store, this.cs, this.returnType, this.source, this.declaredStore, this.collector, this.pc);
 
   IType processExpression(Expression e) {
     Element element;
@@ -222,12 +252,169 @@ class MethodBodyVisitor extends RecursiveAstVisitor {
       return this.store.getTypeOrVariable(element, new Bot());
     }
     else if (e is PrefixedIdentifier) {
-      element = e.bestElement;
-      return this.store.getTypeOrVariable(element, new Bot());
+      Element el = e.identifier.bestElement;
+      if (el is PropertyAccessorElement) return this.store.getTypeOrVariable(el.variable, new Bot());
+      else return new Bot();
+    }
+    else if (e is PropertyAccess) {
+      Element el = e.propertyName.bestElement;
+      if (el is PropertyAccessorElement) return this.store.getTypeOrVariable(el.variable, new Bot());
+      else return new Bot();
     }
     else {
       return new Bot();
     }
+  }
+
+  IType processReturnType(VariableDeclarationList node) {
+    ErrorLocation location = new ErrorLocation(this.source, node.length, node.offset, node);
+    Annotation a = AnnotationHelper.getDeclared(node);
+    IType right;
+    if (a != null) {
+      String facet = a.arguments.arguments.first.toString().replaceAll("\"", "");
+      if (this.declaredStore.containsKey(facet)) {
+        IType t = this.declaredStore[facet];
+        IType tvar = this.store.getTypeVariable(new Bot());
+        this.cs.addConstraint(new DeclaredConstraint(tvar, t, location));
+        right = tvar;
+      }
+      else {
+        /*
+        this try/catch is because the element of "node.element" may not exist
+        when typing the facet, due to this case: @declString foo...
+         */
+        try {
+          collector.errors.add(new UndefinedFacetError(node.variables.first.element.enclosingElement, facet));
+          IType tvar1 = this.store.getTypeVariable(new Bot());
+          this.declaredStore[facet] = tvar1;
+          IType tvar2 = this.store.getTypeVariable(new Bot());
+          this.cs.addConstraint(new DeclaredConstraint(tvar2, tvar1, location));
+          right = tvar2;
+        }
+        catch(e){}
+
+      }
+    }
+    else right = store.getTypeVariable(new Bot());
+    return right;
+  }
+
+  @override
+  visitIfStatement(IfStatement node) {
+    node.condition.accept(this);
+    IType cond = processExpression(node.condition);
+    ErrorLocation location = new ErrorLocation(source, node.condition.length, node.condition.offset, node.condition);
+    IType newPC = store.getTypeVariable(new Bot());
+    this.cs.addConstraint(new SubtypingConstraint(cond, newPC, location));
+    this.cs.addConstraint(new SubtypingConstraint(pc, newPC, location));
+    BlockVisitor visitor = new BlockVisitor(store, cs, returnType, source, declaredStore, collector, newPC);
+    node.thenStatement.accept(visitor);
+    if (node.elseStatement != null) node.elseStatement.accept(visitor);
+  }
+
+  @override
+  visitAssignmentExpression(AssignmentExpression node) {
+    log.shout("Found assignment expresion ${node}");
+    ErrorLocation location = new ErrorLocation(source, node.length, node.offset, node);
+    IType left = processExpression(node.leftHandSide);
+    IType right = processExpression(node.rightHandSide);
+    this.cs.addConstraint(new SubtypingConstraint(right, left, location));
+    //this.cs.addConstraint(new SubtypingConstraint(right, pc, location));
+    return super.visitAssignmentExpression(node);
+  }
+
+  @override
+  visitVariableDeclarationList(VariableDeclarationList node) {
+    log.shout("Found variable declarations ${node}");
+    IType left = processReturnType(node);
+    ErrorLocation location = new ErrorLocation(source, node.length, node.offset, node);
+    for (VariableDeclaration v in node.variables) {
+      IType right = this.store.getTypeOrVariable(v.element, new Bot());
+      this.cs.addConstraint(new SubtypingConstraint(right, left, location));
+      if (v.initializer != null) {
+        IType init = processExpression(v.initializer);
+        this.cs.addConstraint(new SubtypingConstraint(init, right, location));
+        //this.cs.addConstraint(new SubtypingConstraint(init, pc, location));
+      }
+    }
+    return super.visitVariableDeclarationList(node);
+  }
+
+  @override
+  visitPrefixedIdentifier(PrefixedIdentifier node) {
+    log.shout("Found field invocation on variable ${node}");
+    Element propertyAccessor = node.identifier.bestElement;
+    if (propertyAccessor is PropertyAccessorElement && !propertyAccessor.variable.isSynthetic) {
+      ErrorLocation location = new ErrorLocation(this.source,node.length, node.offset, node);
+      /*
+      The target node of prefixedIndentifier is always a variable.
+     */
+      IType target = this.store.getTypeOrVariable(node.prefix.bestElement, new Bot());
+
+      IType fieldReturn = this.store.getTypeOrVariable(propertyAccessor.variable, new Bot());
+      IType variableReturn;
+      if (propertyAccessor.variable.library != null && propertyAccessor.variable.library.isDartCore && !(node.parent is MethodInvocation || node.parent is PrefixedIdentifier || node.parent is PropertyAccess)) {
+        variableReturn = new Bot();
+      }
+      else variableReturn = this.store.getTypeVariable(new Bot());
+      if (fieldReturn != null)  this.cs.addConstraint(new SubtypingConstraint(fieldReturn, variableReturn, location));
+
+      FieldType fieldSignature = new FieldType(variableReturn);
+
+      IType callType = new ObjectType({node.bestElement.name: fieldSignature});
+
+      if (target != null) this.cs.addConstraint(new SubtypingConstraint(target, callType, location));
+
+      /*
+    no need to check for chainedCalls because this field call only occurs on variables.
+     */
+
+      chainedCallParentType = target;
+    }
+
+
+
+    return super.visitPrefixedIdentifier(node);
+  }
+
+  @override
+  visitPropertyAccess(PropertyAccess node) {
+    log.shout("Found field invocation on object ${node}");
+
+    Element propertyAccessor = node.propertyName.bestElement;
+    if (propertyAccessor is PropertyAccessorElement) {
+      ErrorLocation location = new ErrorLocation(this.source,node.length, node.offset, node);
+      /*
+      The target node of prefixedIndentifier is always a variable.
+     */
+      IType target = processExpression(node.target);
+
+      IType fieldReturn = this.store.getTypeOrVariable(propertyAccessor.variable, new Bot());
+      IType variableReturn;
+      if (propertyAccessor.variable.library != null && propertyAccessor.variable.library.isDartCore && !(node.parent is MethodInvocation || node.parent is PrefixedIdentifier || node.parent is PropertyAccess)) {
+        variableReturn = new Bot();
+      }
+      else variableReturn = this.store.getTypeVariable(new Bot());
+      if (fieldReturn != null) this.cs.addConstraint(new SubtypingConstraint(fieldReturn, variableReturn, location));
+
+      FieldType fieldSignature = new FieldType(variableReturn);
+
+      IType callType = new ObjectType({node.propertyName.name: fieldSignature});
+
+      if (target != null) this.cs.addConstraint(new SubtypingConstraint(target, callType, location));
+      if ((node.parent is MethodInvocation || node.parent is PrefixedIdentifier || node.parent is PropertyAccess) && chainedCallParentType != null) {
+        // y <: chainedCallParentType
+        ErrorLocation parentLocation = new ErrorLocation(source, node.parent.length, node.parent.offset, node.parent);
+        this.cs.addConstraint(new SubtypingConstraint(fieldSignature.rightSide, chainedCallParentType, parentLocation));
+      }
+      /*
+    Finally, we update the variable that store the necessary type for chained
+    method calls.
+     */
+      chainedCallParentType = target;
+    }
+
+    return super.visitPropertyAccess(node);
   }
 
   @override
@@ -241,7 +428,13 @@ class MethodBodyVisitor extends RecursiveAstVisitor {
     AstNode target = node.target;
     IType targetType;
     if (target is SimpleIdentifier) {
-      targetType = this.store.getTypeOrVariable(target.bestElement, new Bot());
+      Element bestElement = target.bestElement;
+      if (bestElement is PropertyAccessorElement) {
+        targetType = this.store.getTypeOrVariable(bestElement.variable, new Bot());
+      }
+      else {
+        targetType = this.store.getTypeOrVariable(bestElement, new Bot());
+      }
     }
     if (targetType == null) targetType = this.store.getTypeVariable(new Bot());
     /*
@@ -251,7 +444,7 @@ class MethodBodyVisitor extends RecursiveAstVisitor {
     IType methodReturn;
     IType variableReturn;
     List<IType> variableParameters;
-    if (node.staticInvokeType.element.library != null && node.staticInvokeType.element.library.isDartCore && !(node.parent is MethodInvocation || node.parent is PrefixedIdentifier)) {
+    if (node.staticInvokeType.element.library != null && node.staticInvokeType.element.library.isDartCore && !(node.parent is MethodInvocation || node.parent is PrefixedIdentifier|| node.parent is PropertyAccess)) {
       variableReturn = new Bot();
     }
     else {
@@ -285,9 +478,10 @@ class MethodBodyVisitor extends RecursiveAstVisitor {
         {node.methodName.toString(): methodSignature});
     // TVar(i) <: {m: x -> y}
     this.cs.addConstraint(new SubtypingConstraint(targetType, callType, location));
-    if (node.parent is MethodInvocation || node.parent is PrefixedIdentifier) {
+    if ((node.parent is MethodInvocation || node.parent is PrefixedIdentifier || node.parent is PropertyAccess) && chainedCallParentType != null) {
       // y <: chainedCallParentType
-      this.cs.addConstraint(new SubtypingConstraint(methodSignature.rightSide, chainedCallParentType, location));
+      ErrorLocation parentLocation = new ErrorLocation(source, node.parent.length, node.parent.offset, node.parent);
+      this.cs.addConstraint(new SubtypingConstraint(methodSignature.rightSide, chainedCallParentType, parentLocation));
     }
     /*
     Finally, we update the variable that store the necessary type for chained
@@ -295,6 +489,49 @@ class MethodBodyVisitor extends RecursiveAstVisitor {
      */
     chainedCallParentType = targetType;
     return super.visitMethodInvocation(node);
+  }
+
+  @override
+  visitInstanceCreationExpression(InstanceCreationExpression node) {
+    ErrorLocation location = new ErrorLocation(this.source, node.length, node.offset, node);
+    log.shout("Found instance creation ${node}");
+    /*
+    We check the constructor signature, generating the constraint between
+    arguments and parameters.
+     */
+    if (node.staticElement != null) {
+      IType methodReturn;
+      IType variableReturn;
+      if (node.staticElement.library != null && node.staticElement.library.isDartCore) {
+        variableReturn = new Bot();
+      }
+      else {
+        variableReturn = this.store.getTypeVariable(new Bot());
+      }
+      methodReturn = this.store.getTypeOrVariable(node.staticElement, new Bot());
+
+      this.cs.addConstraint(new SubtypingConstraint(methodReturn, variableReturn, location));
+
+      node.argumentList.arguments.forEach((a) {
+        IType parType;
+        if (node.staticElement.library != null && node.staticElement.library.isDartCore) {
+          parType = new Top();
+        }
+        else {
+          parType = this.store.getTypeOrVariable(a.bestParameterElement, new Top());
+        }
+        IType argType = processExpression(a);
+        this.cs.addConstraint(new SubtypingConstraint(argType, parType, location));
+      });
+
+      if ((node.parent is MethodInvocation || node.parent is PrefixedIdentifier || node.parent is PropertyAccess) && chainedCallParentType != null) {
+        // y <: chainedCallParentType
+        ErrorLocation parentLocation = new ErrorLocation(source, node.parent.length, node.parent.offset, node.parent);
+        this.cs.addConstraint(new SubtypingConstraint(variableReturn, chainedCallParentType, parentLocation));
+      }
+    }
+
+    return super.visitInstanceCreationExpression(node);
   }
 
   @override

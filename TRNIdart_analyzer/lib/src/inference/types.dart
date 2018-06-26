@@ -36,10 +36,10 @@ class ObjectType extends IType {
   /*
   A map between a label and a type (usually arrow type)
    */
-  Map<String, ArrowType> members;
+  Map<String, IType> members;
 
   ObjectType([this.members]) {
-    if (this.members == null) this.members = new Map<String, ArrowType>();
+    if (this.members == null) this.members = new Map<String, IType>();
   }
 
   @override
@@ -88,7 +88,7 @@ class ObjectType extends IType {
     else return false;
   }
 
-  bool hasMember(String label, ArrowType arrowType) {
+  bool hasMember(String label, IType arrowType) {
     return this.members.containsKey(label) && this.members[label] == arrowType;
   }
 }
@@ -136,13 +136,36 @@ class ArrowType extends IType {
   }
 }
 
-class FieldType extends ArrowType {
+class FieldType extends IType {
   IType rightSide;
 
-  FieldType(this.rightSide) : super([], rightSide);
+  FieldType(this.rightSide);
 
   @override
   String toString() => "${rightSide}";
+
+  @override
+  bool equals(IType t) {
+    if (t is FieldType) {
+      if (!rightSide.equals(t.rightSide)) return false;
+      return true;
+    }
+    return false;
+  }
+
+  @override
+  bool isConcrete() {
+    return rightSide.isConcrete();
+  }
+
+  @override
+  bool subtypeOf(IType t) {
+    if (t is FieldType) {
+      if (rightSide.subtypeOf(t.rightSide)) return true;
+      return false;
+    }
+    return true;
+  }
 }
 
 class Top extends ObjectType {
@@ -161,7 +184,7 @@ class Top extends ObjectType {
   bool subtypeOf(IType t) => t is Top || t is TVar;
 
   @override
-  bool hasMember(String label, ArrowType arrowType) => false;
+  bool hasMember(String label, IType arrowType) => false;
 }
 
 class Bot extends ObjectType {
@@ -180,5 +203,5 @@ class Bot extends ObjectType {
   bool subtypeOf(IType t) => true;
 
   @override
-  bool hasMember(String label, ArrowType arrowType) => true;
+  bool hasMember(String label, IType arrowType) => true;
 }

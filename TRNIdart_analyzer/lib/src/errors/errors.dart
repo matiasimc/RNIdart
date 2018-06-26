@@ -1,5 +1,7 @@
 import 'package:TRNIdart_analyzer/TRNIdart_analyzer.dart';
 import 'package:analyzer/error/error.dart';
+import 'package:analyzer/src/generated/source.dart';
+
 
 class SubtypingError extends AnalysisError {
   Constraint c;
@@ -25,7 +27,13 @@ class UnableToResolveError extends AnalysisError {
 class UndefinedFacetError extends AnalysisError {
   Element e;
   String facetName;
+
+  int customOffset;
+  int customLength;
+  Source customSource;
+
   UndefinedFacetError(this.e, this.facetName) : super(e.source, e.computeNode().offset, 9+4+facetName.length, new UndefinedFacetErrorCode(facetName, "Please create the abstract class."));
+
 }
 
 class UndefinedFacetErrorCode implements ErrorCode {

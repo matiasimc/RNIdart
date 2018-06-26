@@ -10,10 +10,16 @@ class TRNIAnalyzer {
   static Map<String, IType> declaredStore = new Map();
   static ErrorCollector errorCollector = new ErrorCollector();
 
+  TRNIAnalyzer() {
+    TRNIAnalyzer.reset();
+  }
+
   static void reset() {
     TRNIAnalyzer.store = new Store();
     TRNIAnalyzer.cs = new ConstraintSet();
     TRNIAnalyzer.declaredStore = new Map();
+    TRNIAnalyzer.declaredStore["Top"] = new Top();
+    TRNIAnalyzer.declaredStore["Bot"] = new Bot();
     TRNIAnalyzer.errorCollector = new ErrorCollector();
   }
 

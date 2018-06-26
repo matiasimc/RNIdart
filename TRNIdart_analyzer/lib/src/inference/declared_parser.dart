@@ -15,14 +15,14 @@ class DeclaredParser extends SimpleAstVisitor {
       ObjectType ot = new ObjectType();
       for (ClassMember m in node.members) {
         IType signature;
-        String label;
+        String label = "";
         if (m is MethodDeclaration) {
           signature = new ArrowType(m.parameters.parameters.map((p) => new Top()).toList(), new Bot());
           label = m.name.toString();
         }
         if (m is FieldDeclaration) {
           signature = new Bot();
-          label = m.element.name;
+          if (m.element != null) label = m.element.name;
         }
         ot.addMember(label, signature);
       }

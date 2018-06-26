@@ -9,11 +9,25 @@ class ConstraintSolver {
 
   ConstraintSolver(this.store, this.cs, this.collector);
 
+  bool hasNull(IType t) {
+    if (t == null) return true;
+    else {
+      if (t is ArrowType) return t.leftSide.any((t1) => hasNull(t1)) || hasNull(t.rightSide);
+      if (t is ObjectType) return t.members.values.any((t1) => hasNull(t1));
+    }
+    return false;
+  }
+
   void solve() {
     /*
     If there is no type variable to solve, return
      */
     if (this.store.varIndex < 1) return;
+
+    /*
+    If there is a constraint with a "null" type inside, we remove it
+     */
+    this.cs.constraints.removeWhere((c) => hasNull(c.left) || hasNull(c.right));
 
     /*
     First, we remove "dummy" constraints like Bot <: x or x <: Top
@@ -292,7 +306,7 @@ class ConstraintSolver {
       else {
         if (!AnnotationHelper.elementHasDeclared(e))
           try {
-            collector.errors.add(new InferredFacetInfo(e, store.getType(e)));
+            if (!e.isSynthetic) collector.errors.add(new InferredFacetInfo(e, store.getType(e)));
           }
           catch (e) {
 
