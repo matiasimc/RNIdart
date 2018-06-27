@@ -19,12 +19,13 @@ class CompilationUnitVisitor extends SimpleAstVisitor {
 
   @override
   visitClassDeclaration(ClassDeclaration node) {
-    ErrorLocation location = new ErrorLocation(this.source, node.length, node.offset, node);
     if (node.isAbstract) {
       DeclaredParser parser = new DeclaredParser();
       node.accept(parser);
       if (this.declaredStore.containsKey(node.element.name)) {
-        this.cs.addConstraint(new DeclaredConstraint(this.declaredStore[node.element.name], parser.getType(), location));
+        this.store.types.forEach((i, t) {
+          if (t == this.declaredStore[node.element.name]) this.store.types[i] = parser.getType();
+        });
       }
       else {
         this.declaredStore[node.element.name] = parser.getType();
@@ -65,16 +66,13 @@ class ClassMemberVisitor extends SimpleAstVisitor {
   ClassMemberVisitor(this.store, this.cs, this.declaredStore, this.collector, this.source);
 
   IType processReturnType(ClassMember node) {
-    ErrorLocation location = new ErrorLocation(this.source, node.length, node.offset, node);
     Annotation a = AnnotationHelper.getDeclared(node);
     IType right;
     if (a != null) {
       String facet = a.arguments.arguments.first.toString().replaceAll("\"", "");
       if (this.declaredStore.containsKey(facet)) {
-        IType t = this.declaredStore[facet];
-        IType tvar = this.store.getTypeVariable(new Bot());
-        this.cs.addConstraint(new DeclaredConstraint(tvar, t, location));
-        right = tvar;
+        this.store.addElement(node.element, new Bot(), declaredStore[facet]);
+        right = declaredStore[facet];
       }
       else {
         /*
@@ -83,11 +81,8 @@ class ClassMemberVisitor extends SimpleAstVisitor {
          */
         try {
           collector.errors.add(new UndefinedFacetError(node.element, facet));
-          IType tvar1 = this.store.getTypeVariable(new Bot());
-          this.declaredStore[facet] = tvar1;
-          IType tvar2 = this.store.getTypeVariable(new Bot());
-          this.cs.addConstraint(new DeclaredConstraint(tvar2, tvar1, location));
-          right = tvar2;
+          right = this.store.getTypeVariable(new Bot());
+          this.declaredStore[facet] = right;
         }
         catch(e){}
 
@@ -98,7 +93,6 @@ class ClassMemberVisitor extends SimpleAstVisitor {
   }
 
   List<IType> processParametersType(MethodDeclaration node) {
-    ErrorLocation location = new ErrorLocation(this.source, node.length, node.offset, node);
     List<IType> left = node.element.parameters.map((p) {
       Annotation a = AnnotationHelper.getDeclaredForParameter(p.computeNode());
       if (a == null) {
@@ -109,18 +103,15 @@ class ClassMemberVisitor extends SimpleAstVisitor {
         String facet = a.arguments.arguments.first.toString().replaceAll("\"", "");
         if (this.declaredStore.containsKey(facet)) {
           IType t = this.declaredStore[facet];
-          IType tvar = this.store.getTypeOrVariable(p, new Top());
-          this.cs.addConstraint(new DeclaredConstraint(tvar, t, location));
-          return tvar;
+          this.store.addElement(node.element, new Bot(), t);
+          return t;
         }
         else {
           try {
             collector.errors.add(new UndefinedFacetError(p, facet));
             IType tvar1 = this.store.getTypeVariable(new Top());
             this.declaredStore[facet] = tvar1;
-            IType tvar2 = this.store.getTypeOrVariable(p, new Top());
-            this.cs.addConstraint(new DeclaredConstraint(tvar2, tvar1, location));
-            return tvar2;
+            return tvar1;
           }
           catch(e) {}
         }
@@ -141,16 +132,17 @@ class ClassMemberVisitor extends SimpleAstVisitor {
         String facet = a.arguments.arguments.first.toString().replaceAll("\"", "");
         if (this.declaredStore.containsKey(facet)) {
           IType t = this.declaredStore[facet];
-          IType tvar = this.store.getTypeOrVariable(p, new Top());
-          this.cs.addConstraint(new DeclaredConstraint(tvar, t, location));
-          return tvar;
+          this.store.addElement(node.element, new Bot(), t);
+          return t;
         }
         else {
-          IType tvar1 = this.store.getTypeVariable(new Top());
-          this.declaredStore[facet] = tvar1;
-          IType tvar2 = this.store.getTypeOrVariable(p, new Top());
-          this.cs.addConstraint(new DeclaredConstraint(tvar2, tvar1, location));
-          return tvar2;
+          try {
+            collector.errors.add(new UndefinedFacetError(p, facet));
+            IType tvar1 = this.store.getTypeVariable(new Top());
+            this.declaredStore[facet] = tvar1;
+            return tvar1;
+          }
+          catch(e) {}
         }
       }
     }).toList();
@@ -267,16 +259,15 @@ class BlockVisitor extends RecursiveAstVisitor {
   }
 
   IType processReturnType(VariableDeclarationList node) {
-    ErrorLocation location = new ErrorLocation(this.source, node.length, node.offset, node);
     Annotation a = AnnotationHelper.getDeclared(node);
     IType right;
     if (a != null) {
       String facet = a.arguments.arguments.first.toString().replaceAll("\"", "");
       if (this.declaredStore.containsKey(facet)) {
-        IType t = this.declaredStore[facet];
-        IType tvar = this.store.getTypeVariable(new Bot());
-        this.cs.addConstraint(new DeclaredConstraint(tvar, t, location));
-        right = tvar;
+        for (VariableDeclaration v in node.variables) {
+          this.store.addElement(v.element, new Bot(), declaredStore[facet]);
+        }
+        right = declaredStore[facet];
       }
       else {
         /*
@@ -284,12 +275,11 @@ class BlockVisitor extends RecursiveAstVisitor {
         when typing the facet, due to this case: @declString foo...
          */
         try {
-          collector.errors.add(new UndefinedFacetError(node.variables.first.element.enclosingElement, facet));
-          IType tvar1 = this.store.getTypeVariable(new Bot());
-          this.declaredStore[facet] = tvar1;
-          IType tvar2 = this.store.getTypeVariable(new Bot());
-          this.cs.addConstraint(new DeclaredConstraint(tvar2, tvar1, location));
-          right = tvar2;
+          for (VariableDeclaration v in node.variables) {
+            collector.errors.add(new UndefinedFacetError(v.element, facet));
+          }
+          right = this.store.getTypeVariable(new Bot());
+          this.declaredStore[facet] = right;
         }
         catch(e){}
 
@@ -319,7 +309,7 @@ class BlockVisitor extends RecursiveAstVisitor {
     IType left = processExpression(node.leftHandSide);
     IType right = processExpression(node.rightHandSide);
     this.cs.addConstraint(new SubtypingConstraint(right, left, location));
-    //this.cs.addConstraint(new SubtypingConstraint(right, pc, location));
+    this.cs.addConstraint(new SubtypingConstraint(right, pc, location));
     return super.visitAssignmentExpression(node);
   }
 
@@ -334,7 +324,7 @@ class BlockVisitor extends RecursiveAstVisitor {
       if (v.initializer != null) {
         IType init = processExpression(v.initializer);
         this.cs.addConstraint(new SubtypingConstraint(init, right, location));
-        //this.cs.addConstraint(new SubtypingConstraint(init, pc, location));
+        this.cs.addConstraint(new SubtypingConstraint(init, pc, location));
       }
     }
     return super.visitVariableDeclarationList(node);

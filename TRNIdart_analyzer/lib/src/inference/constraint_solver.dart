@@ -92,7 +92,7 @@ class ConstraintSolver {
     for (int i = this.store.varIndex; i >= 0; i--) {
       var constraintsWhere = this.cs.constraints.where((c) {
         IType left = c.left, right = c.right;
-        return  (left is TVar && left.index == i) || (right is TVar && right.index == i);
+        return  (left is TVar && left.index == i && !this.store.types.containsValue(left)) || (right is TVar && right.index == i && !this.store.types.containsValue(left));
       });
       if (constraintsWhere.length == 1) {
         Constraint cons = constraintsWhere.first;
@@ -122,6 +122,11 @@ class ConstraintSolver {
     /*
     We generate a map from the type variables to every constraint that has the
     type variable
+
+    TODO we have to create a group for EVERY type variable. When we create a
+    group for a variable that already has a concrete type associated in the
+    store, we replace the constraints for new ones with the type variable
+    replaced, so that group is "check only".
      */
     log.shout("Step 2");
     groupedConstraints = new Map();
@@ -137,16 +142,6 @@ class ConstraintSolver {
         groupedConstraints[right].add(c);
       }
     }
-    log.shout("\n groupedConstraints: \n${groupedConstraints}");
-    log.shout("\n constraintSet: \n${this.cs.constraints}");
-
-    /*
-    Now, we iterate over all declared constraint that are resolved and replace them in
-    the groupedConstraints map, until no declared constraint are left
-     */
-
-    log.shout("Step 3");
-    substituteWhereUntilEmpty((c) => (c is DeclaredConstraint) && c.isResolved() && c.left.isVariable(), replaceLeft: true);
     log.shout("\n groupedConstraints: \n${groupedConstraints}");
     log.shout("\n constraintSet: \n${this.cs.constraints}");
 
@@ -188,29 +183,6 @@ class ConstraintSolver {
       }
     }
 
-    /*
-    Using the same idea, we replace with their default value the type variables
-    that only appears in one constraint at the left or at the right
-     */
-    for (int i = this.store.varIndex; i >= 0; i--) {
-      Set<Constraint> occurrencesConstraints = new Set();
-      groupedConstraints.forEach((tvar, set) {
-        set.forEach((c) {
-          IType left = c.left;
-          IType right = c.right;
-          if ((left is TVar && left.index == i) || (right is TVar && right.index == i))
-            occurrencesConstraints.add(c);
-
-        });
-      });
-      if (occurrencesConstraints.length < 2) {
-        for (Constraint c in this.cs.constraints) {
-          var tVars = searchTVar(c.right, i);
-          if (tVars.isNotEmpty)
-            c.right = substitute(c.right, tVars.first, tVars.first.defaultType);
-        }
-      }
-    }
     log.shout("\n groupedConstraints: \n${groupedConstraints}");
     log.shout("\n constraintSet: \n${this.cs.constraints}");
 

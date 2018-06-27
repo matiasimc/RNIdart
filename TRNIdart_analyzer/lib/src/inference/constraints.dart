@@ -34,28 +34,6 @@ class SubtypingConstraint extends Constraint {
   bool isValid() => this.left.subtypeOf(this.right);
 }
 
-class DeclaredConstraint extends Constraint {
-  IType left;
-  IType right;
-  ErrorLocation location;
-
-  DeclaredConstraint(this.left, this.right, this.location);
-
-  @override
-  bool isResolved() => this.left.isConcrete() || this.right.isConcrete();
-
-  @override
-  bool isEmpty() => false;
-
-  String toString() => "${left} = ${right}\n";
-
-  bool operator ==(Object o) =>
-      (o is DeclaredConstraint && this.left.equals(o.left) && this.right.equals(o.right));
-
-  @override
-  bool isValid() => true;
-}
-
 class ConstraintSet {
   List<Constraint> constraints;
 

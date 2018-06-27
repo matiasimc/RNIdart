@@ -205,3 +205,45 @@ class Bot extends ObjectType {
   @override
   bool hasMember(String label, IType arrowType) => true;
 }
+
+class JoinType extends IType {
+  IType right;
+  IType left;
+
+  JoinType(this.left, this.right);
+
+  @override
+  bool equals(IType t) {
+    return (t is JoinType && t.left == this.left && t.right == this.right);
+  }
+
+  @override
+  bool isConcrete() {
+    return this.left.isConcrete() && this.right.isConcrete();
+  }
+
+  @override
+  bool subtypeOf(IType t) => true;
+
+}
+
+class MeetType extends IType {
+  IType right;
+  IType left;
+
+  MeetType(this.left, this.right);
+
+  @override
+  bool equals(IType t) {
+    return (t is JoinType && t.left == this.left && t.right == this.right);
+  }
+
+  @override
+  bool isConcrete() {
+    return this.left.isConcrete() && this.right.isConcrete();
+  }
+
+  @override
+  bool subtypeOf(IType t) => true;
+
+}
