@@ -33,15 +33,16 @@ void main() {
         '''
         import "package:TRNIdart/TRNIdart.dart";
         
+        abstract class StringToString {
+          String toString();
+        }
+        
         class Foo {
           String bar(@declared("StringToString") String s) {
             return s;
           }
         }
         
-        abstract class StringToString {
-          String toString();
-        }
         ''';
 
     var source = mft.newSource("/test.dart", program);
@@ -74,6 +75,7 @@ void main() {
     var program =
         '''
         import "package:TRNIdart/TRNIdart.dart";
+        
         class C1 {
           C2 m(C2 c) {
             c.m4();
@@ -90,7 +92,7 @@ void main() {
             return this;
           }
         
-          C2 m3() {
+          @declared("Bot") C2 m3() {
             return this;
           }
         
@@ -100,8 +102,9 @@ void main() {
         }
         
         abstract class StringToString {
-          @declared("Bot") String toString();
-        }
+            @declared("Bot") String toString();
+          }
+        
         ''';
     var source = mft.newSource("/test.dart", program);
     var result = mft.checkTypeForSourceWithQuery(source, "C2 c");
@@ -117,9 +120,8 @@ void main() {
     var program =
         '''
         class C1 {
-          C2 foo(C2 c21) {
+          void foo(C2 c21) {
             c21.m1();
-            return c21;
           }
         
           void bar(C2 c22) {

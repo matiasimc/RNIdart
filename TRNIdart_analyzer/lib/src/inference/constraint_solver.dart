@@ -33,8 +33,6 @@ class ConstraintSolver {
     First, we remove "dummy" constraints like Bot <: x or x <: Top
      */
     log.shout("Step 0");
-    this.cs.constraints.removeWhere((Constraint c) => (c is SubtypingConstraint) && ((c.left is Bot) || (c.right is Top)));
-
     /*
     Then, we reduce the case when we have x <: y and y <: x. To to this, we look
     the store:
@@ -49,7 +47,7 @@ class ConstraintSolver {
       and delete both constraints.
     */
     Set<Constraint> removableConstraints = this.cs.constraints.where((c) {
-      return (this.cs.constraints.any((c2) => c.left == c2.right && c.right == c2.left));
+      return c.left is TVar && c.right is TVar && (this.cs.constraints.any((c2) => c.left == c2.right && c.right == c2.left));
     }).toSet();
 
     this.cs.constraints.removeWhere((c) => removableConstraints.contains(c));
@@ -79,10 +77,8 @@ class ConstraintSolver {
       }
     }
 
-    /*
-    We check for invalid constraints, and remove them
-     */
-    checkConstraints();
+    log.shout("\n groupedConstraints: \n${groupedConstraints}");
+    log.shout("\n constraintSet: \n${this.cs.constraints}");
 
     /*
     We substitute constraints with type variables that appear in only one constraint
@@ -92,7 +88,7 @@ class ConstraintSolver {
     for (int i = this.store.varIndex; i >= 0; i--) {
       var constraintsWhere = this.cs.constraints.where((c) {
         IType left = c.left, right = c.right;
-        return  (left is TVar && left.index == i && !this.store.types.containsValue(left)) || (right is TVar && right.index == i && !this.store.types.containsValue(left));
+        return  (left is TVar && left.index == i && !this.store.types.containsValue(left)) || (right is TVar && right.index == i && !this.store.types.containsValue(right));
       });
       if (constraintsWhere.length == 1) {
         Constraint cons = constraintsWhere.first;
@@ -119,14 +115,23 @@ class ConstraintSolver {
       }
     }
 
+
+    /*
+    Remove dummy constraints
+     */
+    this.cs.constraints.removeWhere((Constraint c) => (c is SubtypingConstraint) && ((c.left is Bot) || (c.right is Top)));
+
+    /*
+    We check the constraint set.
+     */
+    checkConstraintsOnConstraintSet();
+
+    log.shout("\n groupedConstraints: \n${groupedConstraints}");
+    log.shout("\n constraintSet: \n${this.cs.constraints}");
+
     /*
     We generate a map from the type variables to every constraint that has the
     type variable
-
-    TODO we have to create a group for EVERY type variable. When we create a
-    group for a variable that already has a concrete type associated in the
-    store, we replace the constraints for new ones with the type variable
-    replaced, so that group is "check only".
      */
     log.shout("Step 2");
     groupedConstraints = new Map();
@@ -146,28 +151,10 @@ class ConstraintSolver {
     log.shout("\n constraintSet: \n${this.cs.constraints}");
 
     /*
-    Then, we replace the resolved constraints resulted from the previous step
-     */
-    log.shout("Step 4");
-    substituteWhereUntilEmpty((Constraint c) => c.isResolved() && c.left.isVariable() && groupedConstraints[c.left].where((c1) {
-      IType left = c1.left;
-      if (left is TVar && left == c.left) return true;
-      return false;
-    }).length == 1, replaceLeft: true);
-    substituteWhereUntilEmptySupertype((Constraint c) => c.isResolved() && c.right.isVariable() && groupedConstraints[c.right].where((c1) {
-      IType right = c1.right;
-      if (right is TVar && right == c.right) return true;
-      return false;
-    }).length == 1, replaceLeft: true);
-
-    log.shout("\n groupedConstraints: \n${groupedConstraints}");
-    log.shout("\n constraintSet: \n${this.cs.constraints}");
-
-    /*
     Now, we look in descending order for type variables that are not in the
     grouped constraint map, and replace them with their default value
      */
-    log.shout("Step 5");
+    log.shout("Step 3");
     for (int i = this.store.varIndex; i >= 0; i--) {
       if (groupedConstraints.keys.where((TVar t) => t.index == i).isEmpty) {
         for (Constraint c in this.cs.constraints) {
@@ -183,109 +170,77 @@ class ConstraintSolver {
       }
     }
 
-    log.shout("\n groupedConstraints: \n${groupedConstraints}");
-    log.shout("\n constraintSet: \n${this.cs.constraints}");
-
     /*
-    Then, we replace the resolved constraints resulted from the previous step
+    We iterate over the sets of the groupedConstraints map and reduce them.
      */
-    log.shout("Step 4 again");
-    substituteWhereUntilEmpty((Constraint c) => c.isResolved() && c.left.isVariable() && groupedConstraints[c.left].where((c1) {
-      IType left = c1.left;
-      if (left is TVar && left == c.left) return true;
-      return false;
-    }).length == 1);
-    substituteWhereUntilEmptySupertype((Constraint c) => c.isResolved() && c.right.isVariable() && groupedConstraints[c.right].where((c1) {
-      IType right = c1.right;
-      if (right is TVar && right == c.right) return true;
-      return false;
-    }).length == 1);
-
-    log.shout("\n groupedConstraints: \n${groupedConstraints}");
-    log.shout("\n constraintSet: \n${this.cs.constraints}");
-
-    /*
-    We check for invalid constraints, and remove them
-     */
-    log.shout("Step 6");
-    this.cs.constraints.forEach((c) {
-      if (!c.isValid()) collector.errors.add(new SubtypingError(c));
-    });
-
-    this.cs.constraints.removeWhere((c) => !c.isValid());
-    this.groupedConstraints.values.forEach((s) {
-      s.removeWhere((c) => !c.isValid());
-    });
-    log.shout("\n groupedConstraints: \n${groupedConstraints}");
-    log.shout("\n constraintSet: \n${this.cs.constraints}");
-
-    /*
-    Now we reduce the groups in the groupedConstraints
-    map to only one constraint, doing the replacement and iterating until every
-    entry of the map has only one constraint.
-
-    Here, we use the lattice operations when needed:
-
-    - If t1 <: t2 and t1 <: t3 then t1 <: meet(t2, t3)
-    - If t2 <: t1 and t3 <: t1 then t1 <: join(t2, t3)
-     */
-
-    log.shout("Step 7");
+    log.shout("Step 4");
+    this.cs.constraints.removeWhere((c) => true);
     groupedConstraints.forEach((tvar, set) {
       reduceConstraints(tvar, set);
     });
+
+    log.shout("\n groupedConstraints: \n${groupedConstraints}");
+    log.shout("\n constraintSet: \n${this.cs.constraints}");
+
+
+    /*
+    We do the join and meet operations on resolved JoinTypes and MeetTypes
+     */
+    log.shout("Step 5");
+    groupedConstraints.forEach((tvar, set) {
+      resolveTypesInSet(set);
+    });
+
     log.shout("\n groupedConstraints: \n${groupedConstraints}");
     log.shout("\n constraintSet: \n${this.cs.constraints}");
 
     /*
-    Then, we replace the resolved constraints resulted from the previous step
+    We Iterate over every resolved constraint, substitute everywhere in constraints,
+    do the "resolve" operation and repeat, until no resolved constraint are left.
+    The resolved constraints should be added to a list.
      */
-    log.shout("Step 8");
-    substituteWhereUntilEmpty((Constraint c) => c.isResolved() && c.left.isVariable() && groupedConstraints[c.left].length == 1, replaceLeft: true);
-    substituteWhereUntilEmptySupertype((Constraint c) => c.isResolved() && c.right.isVariable() && groupedConstraints[c.right].length == 1, replaceLeft: true);
+    log.shout("Step 6");
 
-    /*
-    Finally, we do a replacement in the store, and look for type variables in
-    the store that are not in the groupedConstraints map, and replace them with
-    their default value.
-     */
+    substituteWhereUntilEmpty((Constraint c) => c.isResolved() && (c.left.isVariable() || c.right.isVariable()), replaceLeft: true);
 
     log.shout("\n groupedConstraints: \n${groupedConstraints}");
-
-    groupedConstraints.forEach((tvar, set) {
-      if (set.length == 1 && set.first.isResolved()) {
-        store.types.forEach((i, t) {
-          if (set.first.left is TVar)
-            store.types[i] = substitute(store.types[i], set.first.left, set.first.right);
-          else store.types[i] = substitute(store.types[i], set.first.right, set.first.left);
-        });
-      }
-    });
-
-    store.types.forEach((i, t) {
-      if (t is TVar && !groupedConstraints.containsKey(t)) {
-        store.types[i] = t.defaultType;
-      }
-    });
+    log.shout("\n constraintSet: \n${this.cs.constraints}");
 
     /*
-    We do a final look in the store to generate the "INFO" errors to acknowledge
-    the user about the inference result.
+    Now, we check for invalid constraints to report errors.
      */
 
+    log.shout("Step 7");
+    checkConstraintsOnGroupedSet();
+
+    /*
+    Finally, we substitute in the store.
+     */
+
+    log.shout("Step 8");
+    store.types.forEach((i, t) {
+      if (groupedConstraints.containsKey(t)) {
+        IType selected;
+        groupedConstraints[t].forEach((c) {
+          if (c.left == t) selected = c.right;
+          else selected = c.left;
+        });
+        store.types[i] = selected;
+      }
+    });
+
     store.elements.forEach((e,i) {
-      if (store.getType(e).isVariable()) collector.errors.add(new UnableToResolveError(e));
+      if (!store.getType(e).isConcrete())
+        collector.errors.add(new UnableToResolveError(e));
       else {
         if (!AnnotationHelper.elementHasDeclared(e))
           try {
-            if (!e.isSynthetic) collector.errors.add(new InferredFacetInfo(e, store.getType(e)));
+            if (!e.isSynthetic) collector.errors.add(
+                new InferredFacetInfo(e, store.getType(e)));
           }
-          catch (e) {
-
-          }
+          catch (e) {}
       }
     });
-
   }
 
   void substituteWhereUntilEmpty(test, {bool replaceLeft = false}) {
@@ -294,37 +249,41 @@ class ConstraintSolver {
     2- Substitute in every set and in this.cs.constraints.
     3- Go to step 1, unless there is no constraint that satisfy test.
      */
-    List<Constraint> filter = this.cs.constraints.where(test).toList();
+    List<Constraint> allConstraint = groupedConstraints.values.map((s) => s.toList()).expand((x) => x).toList();
+    List<Constraint> filter = allConstraint.where(test).toList();
     while (filter.isNotEmpty) {
       Constraint pop = filter.removeLast();
-      for (Constraint c in this.cs.constraints) {
+      for (Constraint c in allConstraint) {
         if (c != pop) {
-          c.right = substitute(c.right, pop.left, pop.right);
-          if (replaceLeft) c.left = substitute(c.left, pop.left, pop.right);
+          if (pop.left.isVariable()) {
+            IType oldRight = c.right;
+            IType oldLeft = c.left;
+            IType newRight = substitute(c.right, pop.left, pop.right);
+            IType newLeft = substitute(c.left, pop.left, pop.right);
+            if (oldRight != newRight) c.location.insertAll(0,pop.location);
+            c.right = newRight;
+            if (replaceLeft) {
+              if (oldLeft != newLeft) c.location.addAll(pop.location);
+              c.left = newLeft;
+            }
+          }
+          else {
+            IType oldRight = c.right;
+            IType oldLeft = c.left;
+            IType newRight = substitute(c.right, pop.right, pop.left);
+            IType newLeft = substitute(c.left, pop.right, pop.left);
+            if (oldRight != newRight) c.location.insertAll(0,pop.location);
+            c.right = newRight;
+            if (replaceLeft) {
+              if (oldLeft != newLeft) c.location.addAll(pop.location);
+              c.left = newLeft;
+            }
+          }
         }
       }
-      this.cs.constraints.remove(pop);
-      filter = this.cs.constraints.where(test).toList();
-    }
-  }
-
-  void substituteWhereUntilEmptySupertype(test, {bool replaceLeft = false}) {
-    /*
-    1- Select the constraints in this.cs.constraints that satisfy test.
-    2- Substitute in every set and in this.cs.constraints.
-    3- Go to step 1, unless there is no constraint that satisfy test.
-     */
-    List<Constraint> filter = this.cs.constraints.where(test).toList();
-    while (filter.isNotEmpty) {
-      Constraint pop = filter.removeLast();
-      for (Constraint c in this.cs.constraints) {
-        if (c != pop) {
-          c.right = substitute(c.right, pop.right, pop.left);
-          if (replaceLeft) c.left = substitute(c.left, pop.right, pop.left);
-        }
-      }
-      this.cs.constraints.remove(pop);
-      filter = this.cs.constraints.where(test).toList();
+      allConstraint.remove(pop);
+      groupedConstraints.values.forEach((s) => resolveTypesInSet(s));
+      filter = allConstraint.where(test).toList();
     }
   }
 
@@ -345,6 +304,14 @@ class ConstraintSolver {
       else if (source is ObjectType) {
         Map members = source.members.map((label, arrowType) => new MapEntry(label, substitute(arrowType, target, newType)));
         return new ObjectType(members);
+      }
+      else if (source is JoinType) {
+        List<IType> types = source.types.map((t) => substitute(t, target, newType)).toList();
+        return new JoinType(types);
+      }
+      else if (source is MeetType) {
+        List<IType> types = source.types.map((t) => substitute(t, target, newType)).toList();
+        return new MeetType(types);
       }
       else return source;
     }
@@ -369,65 +336,77 @@ class ConstraintSolver {
     return ret;
   }
 
-  void checkConstraints() {
+  void checkConstraintsOnConstraintSet() {
     this.cs.constraints.forEach((c) {
-      if (!c.isValid()) collector.errors.add(new SubtypingError(c));
+      if (!c.isValid()) {
+        c.location.forEach((l) => collector.errors.add(new SubtypingError(c, l)));
+      }
     });
+  }
 
-    this.cs.constraints.removeWhere((c) => !c.isValid());
+  void checkConstraintsOnGroupedSet() {
+    this.groupedConstraints.values.forEach((s) => s.forEach((c) {
+      if (!c.isValid()) {
+        log.shout("location: ${c.location.map((el) => el.node.runtimeType)}");
+        c.location.forEach((l) => collector.errors.add(new SubtypingError(c, l)));
+      }
+    }));
+  }
+
+  void resolveTypesInSet(Set<Constraint> set) {
+    set.forEach((c) {
+      c.left = resolveTypesInType(c.left);
+      c.right = resolveTypesInType(c.right);
+    });
+  }
+
+  IType resolveTypesInType(IType t) {
+    if (t is MeetType) {
+      if (t.types.any((t1) => t1 is Bot)) {
+        return new Bot();
+      }
+      else if (!t.isConcrete()) return t;
+      return t.types.reduce(meet);
+    }
+    if (t is JoinType) {
+      if (t.types.any((t1) => t1 is Top)) {
+        return new Top();
+      }
+      else if (!t.isConcrete()) return t;
+      else return t.types.reduce(join);
+    }
+    return t;
   }
 
   void reduceConstraints(TVar tvar, Set<Constraint> set) {
-    try {
-      if (set.isEmpty) return;
-      Set<Constraint> subtypingSet = set.where((c) => c.left == tvar).toSet();
-      Set<Constraint> supertypingSet = set.where((c) => c.right == tvar).toSet();
-      if (supertypingSet.isEmpty && subtypingSet.isEmpty) return;
-      this.cs.constraints.removeWhere((c) => set.contains(c));
-      Constraint subtypingConstraint;
-      Constraint supertypingConstraint;
+    if (set.isEmpty) return;
+    Set<Constraint> subtypingSet = set.where((c) => c.left == tvar).toSet();
+    Set<Constraint> supertypingSet = set.where((c) => c.right == tvar).toSet();
+    Constraint subtypingConstraint, supertypingConstraint;
 
-      if (subtypingSet.isNotEmpty) subtypingConstraint = subtypingSet.reduce((c1,c2) {
-        if (!c1.isValid()) {
-          log.shout("Hubo un error pues ${c1} no es válida");
-          collector.errors.add(new SubtypingError(c1));
-        }
-        if (!c2.isValid()) {
-          log.shout("Hubo un error pues ${c2} no es válida");
-          collector.errors.add(new SubtypingError(c2));
-        }
-        return meetConstraint(c1, c2);
-      });
-      if (supertypingSet.isNotEmpty) supertypingConstraint = supertypingSet.reduce((c1,c2) {
-        if (!c1.isValid()) {
-          log.shout("Hubo un error pues ${c1} no es válida");
-          collector.errors.add(new SubtypingError(c1));
-        }
-        if (!c2.isValid()) {
-          log.shout("Hubo un error pues ${c2} no es válida");
-          collector.errors.add(new SubtypingError(c2));
-        }
-        return joinConstraint(c1, c2);
-      });
-      if (supertypingConstraint != null && subtypingConstraint != null && !supertypingConstraint.left.subtypeOf(subtypingConstraint.right))
-        collector.errors.add(new SubtypingError(new SubtypingConstraint(
-            supertypingConstraint.left,
-            subtypingConstraint.right,
-            supertypingConstraint.location)));
-      set.retainAll([]);
-      if (subtypingConstraint == null) {
-        set.add(supertypingConstraint);
-        this.cs.constraints.add(supertypingConstraint);
-      }
-      else {
-        set.add(subtypingConstraint);
-        this.cs.constraints.add(subtypingConstraint);
-        if (supertypingConstraint != null) this.cs.constraints.add(supertypingConstraint);
-      }
-    }
-    catch(e) {
-      log.shout(e);
-    }
+    if (subtypingSet.isNotEmpty) subtypingConstraint = new SubtypingConstraint(
+        tvar,
+        new MeetType(subtypingSet.map((c) {
+          return c.right;
+        }).toList()),
+        subtypingSet.map((c2) => c2.location).expand((i) => i).toList());
 
+    if (supertypingSet.isNotEmpty) supertypingConstraint = new SubtypingConstraint(
+        new JoinType(supertypingSet.map((c) {
+          return c.left;
+        }).toList()),
+        tvar,
+        supertypingSet.map((c2) => c2.location).expand((i) => i).toList());
+
+    set.retainAll([]);
+
+    if (subtypingConstraint != null) {
+      set.add(subtypingConstraint);
+      this.cs.addConstraint(subtypingConstraint);
+    }
+    if (supertypingConstraint != null) {
+      set.add(supertypingConstraint);
+      this.cs.addConstraint(supertypingConstraint);
+    }
   }
 }

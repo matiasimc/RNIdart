@@ -11,16 +11,15 @@ class LoginScreen {
 class Foo {
   String foo(Bar b) {
     if (b.cond()) {
-      @declared("Bot") String s = "asd";
+      @declared("StringToString") String s = "asd";
       s.toString();
     }
     return b.getBaz();
   }
 
-  String test(Bar b) {
-    String ret;
-    ret = b.getBaz();
-    return ret;
+  @declared("Bot") Bar test(Bar b) {
+    b.getBaz();
+    return b;
   }
 }
 
@@ -30,7 +29,7 @@ class Bar {
     return "asd";
   }
 
-  @declared("Top") bool cond() {
+  @declared("Bot") bool cond() {
     return true;
   }
 }
@@ -38,5 +37,13 @@ class Bar {
 class Baz {
   String foo(String s) {
     return s.toLowerCase().substring(0).length.toString();
+  }
+
+  String rec1() {
+    return rec2();
+  }
+
+  String rec2() {
+    return rec1();
   }
 }

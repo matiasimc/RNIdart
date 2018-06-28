@@ -207,43 +207,63 @@ class Bot extends ObjectType {
 }
 
 class JoinType extends IType {
-  IType right;
-  IType left;
+  List<IType> types;
 
-  JoinType(this.left, this.right);
+  JoinType([List<IType> types]) {
+    if (types == null) this.types = new List();
+    else this.types = types;
+  }
 
   @override
   bool equals(IType t) {
-    return (t is JoinType && t.left == this.left && t.right == this.right);
+    if (!(t is JoinType)) return false;
+    if (t is JoinType && t.types.length != this.types.length) return false;
+    if (t is JoinType) {
+      for (int i = 0; i < t.types.length; i++) {
+        if (!t.types[i].equals(this.types[i])) return false;
+      }
+    }
+    return true;
   }
 
   @override
-  bool isConcrete() {
-    return this.left.isConcrete() && this.right.isConcrete();
-  }
+  bool isConcrete() => this.types.every((t) => t.isConcrete());
 
   @override
   bool subtypeOf(IType t) => true;
+
+  @override
+  String toString() => "Join${this.types}";
 
 }
 
 class MeetType extends IType {
-  IType right;
-  IType left;
+  List<IType> types;
 
-  MeetType(this.left, this.right);
+  MeetType([List<IType> types]) {
+    if (types == null) this.types = new List();
+    else this.types = types;
+  }
 
   @override
   bool equals(IType t) {
-    return (t is JoinType && t.left == this.left && t.right == this.right);
+    if (!(t is MeetType)) return false;
+    if (t is MeetType && t.types.length != this.types.length) return false;
+    if (t is MeetType) {
+      for (int i = 0; i < t.types.length; i++) {
+        if (!t.types[i].equals(this.types[i])) return false;
+      }
+    }
+    return true;
   }
 
   @override
-  bool isConcrete() {
-    return this.left.isConcrete() && this.right.isConcrete();
-  }
+  bool isConcrete() => this.types.every((t) => t.isConcrete());
 
   @override
   bool subtypeOf(IType t) => true;
+
+  @override
+  String toString() => "Meet${this.types}";
 
 }

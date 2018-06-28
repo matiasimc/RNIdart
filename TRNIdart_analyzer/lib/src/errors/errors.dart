@@ -5,8 +5,9 @@ import 'package:analyzer/src/generated/source.dart';
 
 class SubtypingError extends AnalysisError {
   Constraint c;
-  SubtypingError(this.c) :
-      super(c.location.source, c.location.offset, c.location.length, new SubtypingErrorCode(c, "Please check your security policies"));
+  ErrorLocation l;
+  SubtypingError(this.c, this.l) :
+      super(l.source, l.offset, l.length, new SubtypingErrorCode(c, l, "Please check your security policies"));
 
   @override
   bool operator ==(Object o) => o is SubtypingError && o.c == this.c;
@@ -99,9 +100,10 @@ class SubtypingErrorCode implements ErrorCode {
   String message;
   final String correction;
   Constraint constraint;
+  ErrorLocation l;
 
-  SubtypingErrorCode(this.constraint, [String this.correction]) {
-    AstNode node = constraint.location.node;
+  SubtypingErrorCode(this.constraint, this.l, [String this.correction]) {
+    AstNode node = l.node;
     this.message = "The subtyping relation ${constraint} is invalid.";
     if (node is MethodInvocation) {
       this.message = "The method ${node.methodName} does not belong to the facet ${constraint.left}.";

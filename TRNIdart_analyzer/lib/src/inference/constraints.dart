@@ -6,7 +6,7 @@ abstract class Constraint {
    */
   IType left;
   IType right;
-  ErrorLocation location;
+  List<ErrorLocation> location;
   bool isResolved();
   bool isEmpty();
   bool isValid();
@@ -15,7 +15,7 @@ abstract class Constraint {
 class SubtypingConstraint extends Constraint {
   IType left;
   IType right;
-  ErrorLocation location;
+  List<ErrorLocation> location;
 
   SubtypingConstraint(this.left, this.right, this.location);
 
