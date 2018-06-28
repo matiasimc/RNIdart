@@ -1,4 +1,5 @@
 import 'package:TRNIdart_analyzer/TRNIdart_analyzer.dart';
+import 'package:TRNIdart_analyzer/analyzer.dart';
 import 'package:analyzer/src/generated/source.dart';
 
 
@@ -19,7 +20,7 @@ class CompilationUnitVisitor extends SimpleAstVisitor {
 
   @override
   visitClassDeclaration(ClassDeclaration node) {
-    if (node.isAbstract) {
+    if (node.isAbstract && source.uri.path == TRNIAnalyzer.secDartFile) {
       log.shout("Visiting abstract class ${node.name}");
       DeclaredParser parser = new DeclaredParser();
       node.accept(parser);
@@ -449,12 +450,14 @@ class BlockVisitor extends RecursiveAstVisitor {
     log.shout("Found method invocation ${node}");
     /*
     First, we identify the target node. If it's a variable, we get it from the
-    store. Else, we generate a type variable.
+    store. Else, we generate a type variable. Note that a target that has a
+    concrete type in the store has to be declared.
      */
     AstNode target = node.target;
     IType targetType;
+    Element bestElement;
     if (target is SimpleIdentifier) {
-      Element bestElement = target.bestElement;
+      bestElement = target.bestElement;
       if (bestElement is PropertyAccessorElement) {
         targetType = this.store.getTypeOrVariable(bestElement.variable, new Bot());
       }
@@ -462,7 +465,8 @@ class BlockVisitor extends RecursiveAstVisitor {
         targetType = this.store.getTypeOrVariable(bestElement, new Bot());
       }
     }
-    if (targetType == null) targetType = this.store.getTypeVariable(new Bot());
+    else targetType = this.store.getTypeVariable(new Bot());
+
     /*
     Now we check the method signature, generating the constraint between
     arguments and parameters.
@@ -500,10 +504,17 @@ class BlockVisitor extends RecursiveAstVisitor {
     check if the target is part of a chained method call. If it is, we add the
     corresponding constraint.
      */
-    IType callType = new ObjectType(
-        {node.methodName.toString(): methodSignature});
+    IType callType = new ObjectType({node.methodName.toString(): methodSignature});
     // TVar(i) <: {m: x -> y}
-    this.cs.addConstraint(new SubtypingConstraint(targetType, callType, [location]));
+    this.cs.addConstraint(new SubtypingConstraint(targetType, callType, [location], true));
+    /*
+     If targetType is concrete (so, it's declared), we check the subtyping
+     relation between targetType and callType. If it's invalid, then we
+     change the targetType in the store for Closed(targetType).
+     */
+    if (targetType.isConcrete() && !(targetType is Closed) && bestElement != null && !targetType.subtypeOf(callType)) {
+      store.types[store.elements[bestElement]] = new Closed(targetType);
+    }
     if ((node.parent is MethodInvocation || node.parent is PrefixedIdentifier || node.parent is PropertyAccess) && chainedCallParentType != null) {
       // y <: chainedCallParentType
       ErrorLocation parentLocation = new ErrorLocation(source, node.parent.length, node.parent.offset, node.parent);

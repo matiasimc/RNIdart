@@ -3,6 +3,7 @@ abstract class  IType {
   bool equals(IType t);
   bool isVariable() => false;
   bool subtypeOf(IType t);
+  IType getType();
 }
 
 class TVar extends IType {
@@ -30,6 +31,9 @@ class TVar extends IType {
 
   @override
   bool subtypeOf(IType t) => true;
+
+  @override
+  IType getType() => this;
 }
 
 class ObjectType extends IType {
@@ -91,6 +95,9 @@ class ObjectType extends IType {
   bool hasMember(String label, IType arrowType) {
     return this.members.containsKey(label) && this.members[label] == arrowType;
   }
+
+  @override
+  IType getType() => this;
 }
 
 class ArrowType extends IType {
@@ -134,6 +141,9 @@ class ArrowType extends IType {
     else return false;
     return true;
   }
+
+  @override
+  IType getType() => this;
 }
 
 class FieldType extends IType {
@@ -166,6 +176,9 @@ class FieldType extends IType {
     }
     return true;
   }
+
+  @override
+  IType getType() => this;
 }
 
 class Top extends ObjectType {
@@ -206,6 +219,27 @@ class Bot extends ObjectType {
   bool hasMember(String label, IType arrowType) => true;
 }
 
+class Closed extends IType {
+  IType type;
+
+  Closed(this.type);
+
+  @override
+  bool equals(IType t) => t is Closed && t.type == this.type;
+
+  @override
+  bool isConcrete() => type.isConcrete();
+
+  @override
+  bool subtypeOf(IType t) => type.subtypeOf(t);
+
+  @override
+  String toString() => "Closed(${type})";
+
+  @override
+  IType getType() => type;
+}
+
 class JoinType extends IType {
   List<IType> types;
 
@@ -234,6 +268,9 @@ class JoinType extends IType {
 
   @override
   String toString() => "Join${this.types}";
+
+  @override
+  IType getType() => this;
 
 }
 
@@ -265,5 +302,8 @@ class MeetType extends IType {
 
   @override
   String toString() => "Meet${this.types}";
+
+  @override
+  IType getType() => this;
 
 }

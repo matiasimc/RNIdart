@@ -9,6 +9,7 @@ class TRNIAnalyzer {
   static ConstraintSet cs = new ConstraintSet();
   static Map<String, IType> declaredStore = new Map();
   static ErrorCollector errorCollector = new ErrorCollector();
+  static String secDartFile;
 
   TRNIAnalyzer() {
     TRNIAnalyzer.reset();

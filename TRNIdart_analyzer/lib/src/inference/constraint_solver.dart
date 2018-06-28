@@ -225,7 +225,7 @@ class ConstraintSolver {
           if (c.left == t) selected = c.right;
           else selected = c.left;
         });
-        store.types[i] = selected;
+        store.types[i] = selected.getType();
       }
     });
 

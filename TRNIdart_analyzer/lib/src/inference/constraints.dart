@@ -16,8 +16,9 @@ class SubtypingConstraint extends Constraint {
   IType left;
   IType right;
   List<ErrorLocation> location;
+  bool isFromMethodInvocation;
 
-  SubtypingConstraint(this.left, this.right, this.location);
+  SubtypingConstraint(this.left, this.right, this.location, [this.isFromMethodInvocation = false]);
 
   @override
   bool isResolved() => this.left.isConcrete() || this.right.isConcrete();
@@ -31,7 +32,16 @@ class SubtypingConstraint extends Constraint {
     (o is SubtypingConstraint && this.left.equals(o.left) && this.right.equals(o.right));
 
   @override
-  bool isValid() => this.left.subtypeOf(this.right);
+  bool isValid() {
+    if (isFromMethodInvocation) {
+      if (this.left is Closed) return false;
+      else return true;
+    }
+    if (this.left is Closed && this.right is Closed) return false;
+    if (left is Closed) return left.getType().subtypeOf(right);
+    if (right is Closed) return left.subtypeOf(right.getType());
+    return left.subtypeOf(right);
+  }
 }
 
 class ConstraintSet {
