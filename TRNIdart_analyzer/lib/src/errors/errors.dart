@@ -33,7 +33,7 @@ class UndefinedFacetError extends AnalysisError {
   int customLength;
   Source customSource;
 
-  UndefinedFacetError(this.e, this.facetName) : super(e.source, e.computeNode().offset, 9+4+facetName.length, new UndefinedFacetErrorCode(facetName, "Please create the abstract class."));
+  UndefinedFacetError(this.e, this.facetName) : super(e.source, e.computeNode().offset, 2+4+facetName.length, new UndefinedFacetErrorCode(facetName, "Please create the abstract class."));
 
 }
 
@@ -106,7 +106,7 @@ class SubtypingErrorCode implements ErrorCode {
     AstNode node = l.node;
     this.message = "The subtyping relation ${constraint} is invalid.";
     if (node is MethodInvocation) {
-      this.message = "The method ${node.methodName} does not belong to the facet ${constraint.left}.";
+      this.message = "Error in the method invocation. The subtyping relation ${constraint} is invalid.";
     }
     if (node is ReturnStatement) {
       this.message = "The return expression facet ${constraint.left} is not a subtype of the return facet ${constraint.right}.";

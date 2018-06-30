@@ -8,11 +8,12 @@ abstract class  IType {
 class TVar extends IType {
   int index;
   IType defaultType;
+  IType dartCoreType;
 
   @override
   bool isConcrete() => false;
 
-  TVar(this.index, this.defaultType);
+  TVar(this.index, this.defaultType, {this.dartCoreType});
 
   String toString() => "TVar(${this.index})";
 
@@ -59,6 +60,7 @@ class ObjectType extends IType {
   bool equals(IType t) {
     bool ret = true;
     if (t is ObjectType) {
+      if (t is Top || t is Bot) return false;
       this.members.forEach((label, type) {
         if (!t.members.containsKey(label)) return false;
         ret = ret && t.members[label].equals(this.members[label]);

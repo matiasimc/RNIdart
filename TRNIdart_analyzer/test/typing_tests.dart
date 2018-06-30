@@ -38,7 +38,7 @@ void main() {
         }
         
         class Foo {
-          String bar(@declared("StringToString") String s) {
+          String bar(@S("StringToString") String s) {
             return s;
           }
         }
@@ -92,17 +92,17 @@ void main() {
             return this;
           }
         
-          @declared("Bot") C2 m3() {
+          @S("Bot") C2 m3() {
             return this;
           }
         
-          @declared("StringToString") String m4() {
+          @S("StringToString") String m4() {
             return "hola";
           }
         }
         
         abstract class StringToString {
-            @declared("Bot") String toString();
+            @S("Bot") String toString();
           }
         
         ''';

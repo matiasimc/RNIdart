@@ -9,6 +9,7 @@ class TRNIAnalyzer {
   static ConstraintSet cs = new ConstraintSet();
   static Map<String, IType> declaredStore = new Map();
   static ErrorCollector errorCollector = new ErrorCollector();
+  static String secDartFile;
 
   TRNIAnalyzer() {
     TRNIAnalyzer.reset();
@@ -33,9 +34,9 @@ class TRNIAnalyzer {
     });
   }
 
-  static void computeConstraints(CompilationUnit resolvedUnit) {
+  static void computeConstraints(CompilationUnit resolvedUnit, [bool testMode = false]) {
     Logger.root.shout("Analysis on path: ${resolvedUnit.element.source.uri.path}\n");
-    var visitor = new CompilationUnitVisitor(TRNIAnalyzer.store, TRNIAnalyzer.cs, TRNIAnalyzer.declaredStore, TRNIAnalyzer.errorCollector, resolvedUnit.element.source);
+    var visitor = new CompilationUnitVisitor(TRNIAnalyzer.store, TRNIAnalyzer.cs, TRNIAnalyzer.declaredStore, TRNIAnalyzer.errorCollector, resolvedUnit.element.source, testMode);
     resolvedUnit.accept(visitor);
     Logger.root.shout("Store: \n${TRNIAnalyzer.store.printStore()}");
     Logger.root.shout("Constraint Set: \n${TRNIAnalyzer.cs.constraints}");

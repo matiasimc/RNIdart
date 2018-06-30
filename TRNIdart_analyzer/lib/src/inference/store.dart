@@ -20,18 +20,18 @@ class Store {
     this.varIndex = 0;
   }
 
-  void addElement(Element v, IType defaultType, [IType declaredType]) {
+  void addElement(Element v, IType defaultType, {IType declaredType, IType dartCoreType}) {
     if (!this.elements.containsKey(v)) elements[v] = this.storeIndex++;
     if (declaredType != null) {
       types[elements[v]] = declaredType;
     }
     else {
-      types[elements[v]] = new TVar(varIndex++, defaultType);
+      types[elements[v]] = new TVar(varIndex++, defaultType, dartCoreType: dartCoreType);
     }
   }
 
-  TVar getTypeVariable(IType defaultType) {
-    return new TVar(varIndex++, defaultType);
+  TVar getTypeVariable(IType defaultType, {IType dartCoreType}) {
+    return new TVar(varIndex++, defaultType, dartCoreType: dartCoreType);
   }
 
   bool hasElement(Element e) {
@@ -42,9 +42,9 @@ class Store {
     return types[elements[e]];
   }
 
-  IType getTypeOrVariable(Element e, IType defaultType) {
-    if (e == null) return this.getTypeVariable(defaultType);
-    if (!this.hasElement(e)) this.addElement(e, defaultType);
+  IType getTypeOrVariable(Element e, {IType defaultType, IType dartCoreType}) {
+    if (e == null) return this.getTypeVariable(defaultType, dartCoreType: dartCoreType);
+    if (!this.hasElement(e)) this.addElement(e, defaultType, dartCoreType: dartCoreType);
     return getType(e);
   }
 

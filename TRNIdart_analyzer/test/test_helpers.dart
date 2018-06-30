@@ -66,25 +66,18 @@ class MemoryFileTest {
   String _getTRNIDartContent() {
     return
         '''
-/**
+/*
 Represent the declared interface of a public facet
  */
-class declared {
-  const declared(String s);
-}
-
-/**
-    Represent the inferred interface of a public facet
- */
-class inferred {
-  const inferred(String s);
+class S {
+  const S(String s);
 }
         ''';
   }
 
   IType checkTypeForSourceWithQuery(Source original, String query) {
     var resolvedUnit = context.resolveCompilationUnit(original, context.computeLibraryElement(original));
-    TRNIAnalyzer.computeConstraints(resolvedUnit);
+    TRNIAnalyzer.computeConstraints(resolvedUnit, true);
     TRNIAnalyzer.computeTypes();
     Element element = TRNIAnalyzer.store.elements.keys.firstWhere((e) => e.toString() == query);
     if (element == null) return null;

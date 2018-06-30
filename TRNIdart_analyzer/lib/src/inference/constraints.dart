@@ -10,14 +10,16 @@ abstract class Constraint {
   bool isResolved();
   bool isEmpty();
   bool isValid();
+  bool isFromMethodInvocation;
 }
 
 class SubtypingConstraint extends Constraint {
   IType left;
   IType right;
   List<ErrorLocation> location;
+  bool isFromMethodInvocation;
 
-  SubtypingConstraint(this.left, this.right, this.location);
+  SubtypingConstraint(this.left, this.right, this.location, [this.isFromMethodInvocation = false]);
 
   @override
   bool isResolved() => this.left.isConcrete() || this.right.isConcrete();
@@ -31,7 +33,7 @@ class SubtypingConstraint extends Constraint {
     (o is SubtypingConstraint && this.left.equals(o.left) && this.right.equals(o.right));
 
   @override
-  bool isValid() => this.left.subtypeOf(this.right);
+  bool isValid() => this.isFromMethodInvocation || this.left.subtypeOf(this.right);
 }
 
 class ConstraintSet {

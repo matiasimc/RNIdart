@@ -6,6 +6,7 @@ class ConstraintSolver {
   Store store;
   ErrorCollector collector;
   Map<TVar, Set<Constraint>> groupedConstraints;
+  Set<ErrorLocation> locationsWithErrors = new Set();
 
   ConstraintSolver(this.store, this.cs, this.collector);
 
@@ -60,6 +61,7 @@ class ConstraintSolver {
         this.cs.constraints.forEach((c1) {
           c1.left = substitute(c1.left, c.right, c.left);
           c1.right = substitute(c1.right, c.right, c.left);
+
         });
       }
 
@@ -76,7 +78,6 @@ class ConstraintSolver {
         });
       }
     }
-
     log.shout("\n groupedConstraints: \n${groupedConstraints}");
     log.shout("\n constraintSet: \n${this.cs.constraints}");
 
@@ -200,7 +201,6 @@ class ConstraintSolver {
     The resolved constraints should be added to a list.
      */
     log.shout("Step 6");
-
     substituteWhereUntilEmpty((Constraint c) => c.isResolved() && (c.left.isVariable() || c.right.isVariable()), replaceLeft: true);
 
     log.shout("\n groupedConstraints: \n${groupedConstraints}");
@@ -260,10 +260,16 @@ class ConstraintSolver {
             IType oldLeft = c.left;
             IType newRight = substitute(c.right, pop.left, pop.right);
             IType newLeft = substitute(c.left, pop.left, pop.right);
-            if (oldRight != newRight) c.location.insertAll(0,pop.location);
+            if (oldRight != newRight) {
+              c.location.insertAll(0,pop.location);
+              c.isFromMethodInvocation = c.isFromMethodInvocation || pop.isFromMethodInvocation;
+            }
             c.right = newRight;
             if (replaceLeft) {
-              if (oldLeft != newLeft) c.location.addAll(pop.location);
+              if (oldLeft != newLeft) {
+                c.location.addAll(pop.location);
+                c.isFromMethodInvocation = c.isFromMethodInvocation || pop.isFromMethodInvocation;
+              }
               c.left = newLeft;
             }
           }
@@ -272,19 +278,65 @@ class ConstraintSolver {
             IType oldLeft = c.left;
             IType newRight = substitute(c.right, pop.right, pop.left);
             IType newLeft = substitute(c.left, pop.right, pop.left);
-            if (oldRight != newRight) c.location.insertAll(0,pop.location);
+            if (oldRight != newRight) {
+              c.location.insertAll(0,pop.location);
+            }
             c.right = newRight;
             if (replaceLeft) {
-              if (oldLeft != newLeft) c.location.addAll(pop.location);
+              if (oldLeft != newLeft) {
+                c.isFromMethodInvocation = c.isFromMethodInvocation || pop.isFromMethodInvocation;
+                c.location.addAll(pop.location);
+              }
               c.left = newLeft;
             }
           }
         }
       }
       allConstraint.remove(pop);
+      allConstraint.forEach(substituteForDartCoreType);
       groupedConstraints.values.forEach((s) => resolveTypesInSet(s));
-      filter = allConstraint.where(test).toList();
+      filter = allConstraint.where(test).where((Constraint c) => !(c.left is Bot) && !(c.right is Top)).toList();
     }
+  }
+
+  void substituteForDartCoreType(Constraint c) {
+    for (int i = 0; i < store.varIndex; i++) {
+      c.left = substituteTVarForDartCoreType(c.left, i);
+      c.right = substituteTVarForDartCoreType(c.right, i);
+    }
+  }
+
+  IType substituteTVarForDartCoreType(IType source, int index) {
+    if (source is TVar) {
+      if (source.index == index && source.dartCoreType != null) {
+        return source.dartCoreType;
+      }
+      else return source;
+    }
+    else if (source is ArrowType) {
+      List<IType> left = source.leftSide.map((p) => substituteTVarForDartCoreType(p, index)).toList();
+      IType right = substituteTVarForDartCoreType(source.rightSide, index);
+      return new ArrowType(left.toList(), right);
+    }
+    else if (source is FieldType) {
+      IType right = substituteTVarForDartCoreType(source.rightSide, index);
+      return new FieldType(right);
+    }
+    else if (source is Top) return source;
+    else if (source is Bot) return source;
+    else if (source is ObjectType) {
+      Map members = source.members.map((label, arrowType) => new MapEntry(label, substituteTVarForDartCoreType(arrowType, index)));
+      return new ObjectType(members);
+    }
+    else if (source is JoinType) {
+      List<IType> types = source.types.map((t) => substituteTVarForDartCoreType(t, index)).toList();
+      return new JoinType(types);
+    }
+    else if (source is MeetType) {
+      List<IType> types = source.types.map((t) => substituteTVarForDartCoreType(t, index)).toList();
+      return new MeetType(types);
+    }
+    return source;
   }
 
   IType substitute(IType source, IType target, IType newType) {
@@ -339,17 +391,16 @@ class ConstraintSolver {
   void checkConstraintsOnConstraintSet() {
     this.cs.constraints.forEach((c) {
       if (!c.isValid()) {
-        c.location.forEach((l) => collector.errors.add(new SubtypingError(c, l)));
-      }
+        c.location.forEach((l) { if (!locationsWithErrors.contains(l)) locationsWithErrors.add(l); collector.errors.add(new SubtypingError(c, l));}
+        );}
     });
   }
 
   void checkConstraintsOnGroupedSet() {
     this.groupedConstraints.values.forEach((s) => s.forEach((c) {
       if (!c.isValid()) {
-        log.shout("location: ${c.location.map((el) => el.node.runtimeType)}");
-        c.location.forEach((l) => collector.errors.add(new SubtypingError(c, l)));
-      }
+        c.location.forEach((l) { if (!locationsWithErrors.contains(l)) locationsWithErrors.add(l); collector.errors.add(new SubtypingError(c, l));}
+        );}
     }));
   }
 
@@ -389,14 +440,16 @@ class ConstraintSolver {
         new MeetType(subtypingSet.map((c) {
           return c.right;
         }).toList()),
-        subtypingSet.map((c2) => c2.location).expand((i) => i).toList());
+        subtypingSet.map((c2) => c2.location).expand((i) => i).toList(),
+    subtypingSet.map((c1) => c1.isFromMethodInvocation).reduce((b1, b2) => b1 || b2));
 
     if (supertypingSet.isNotEmpty) supertypingConstraint = new SubtypingConstraint(
         new JoinType(supertypingSet.map((c) {
           return c.left;
         }).toList()),
         tvar,
-        supertypingSet.map((c2) => c2.location).expand((i) => i).toList());
+        supertypingSet.map((c2) => c2.location).expand((i) => i).toList(),
+        supertypingSet.map((c1) => c1.isFromMethodInvocation).reduce((b1, b2) => b1 || b2));
 
     set.retainAll([]);
 

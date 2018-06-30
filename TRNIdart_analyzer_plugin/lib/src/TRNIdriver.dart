@@ -21,6 +21,7 @@ class TRNIDriver implements AnalysisDriverGeneric {
   final AnalysisDriver dartDriver;
   SourceFactory _sourceFactory;
   final FileContentOverlay _contentOverlay;
+  final String secDartFile;
 
   final _addedFiles = new LinkedHashSet<String>();
   final _dartFiles = new LinkedHashSet<String>();
@@ -28,7 +29,7 @@ class TRNIDriver implements AnalysisDriverGeneric {
   final _filesToAnalyze = new HashSet<String>();
 
   TRNIDriver(this.notificationManager, this.dartDriver, this._scheduler,
-      SourceFactory sourceFactory, this._contentOverlay) {
+      SourceFactory sourceFactory, this._contentOverlay, this.secDartFile) {
     _sourceFactory = sourceFactory.clone();
     _scheduler.add(this);
   }
@@ -76,8 +77,13 @@ class TRNIDriver implements AnalysisDriverGeneric {
 
   void generateAndThenSolveConstraints() async {
     await TRNIAnalyzer.reset();
+    /*
+    First we analyze the sec.dart file
+    */
+    await pushConstraintErrors(secDartFile);
     for (final path in _addedFiles) {
-      await pushConstraintErrors(path);
+      if (path != secDartFile)
+        await pushConstraintErrors(path);
       await _filesToAnalyze.removeWhere((s) => s == path);
     }
     await pushTypeErrors();
