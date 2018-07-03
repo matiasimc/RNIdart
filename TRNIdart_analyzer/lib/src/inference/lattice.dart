@@ -1,11 +1,11 @@
 import 'package:TRNIdart_analyzer/TRNIdart_analyzer.dart';
 
 SubtypingConstraint meetConstraint(Constraint c1, Constraint c2) {
-  return new SubtypingConstraint(c1.left, meet(c1.right, c2.right), c1.location, c1.isFromMethodInvocation || c2.isFromMethodInvocation);
+  return new SubtypingConstraint(c1.left, meet(c1.right, c2.right), c1.location, isFromMethodInvocation: c1.isFromMethodInvocation || c2.isFromMethodInvocation);
 }
 
 SubtypingConstraint joinConstraint(Constraint c1, Constraint c2) {
-  return new SubtypingConstraint(join(c1.left, c2.left), c1.right, c1.location, c1.isFromMethodInvocation || c2.isFromMethodInvocation);
+  return new SubtypingConstraint(join(c1.left, c2.left), c1.right, c1.location, isFromMethodInvocation: c1.isFromMethodInvocation || c2.isFromMethodInvocation);
 }
 
 ObjectType meet(IType t1, IType t2) {

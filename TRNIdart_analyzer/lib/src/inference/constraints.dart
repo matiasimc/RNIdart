@@ -18,8 +18,9 @@ class SubtypingConstraint extends Constraint {
   IType right;
   List<ErrorLocation> location;
   bool isFromMethodInvocation;
+  Expression invalidatingExpression;
 
-  SubtypingConstraint(this.left, this.right, this.location, [this.isFromMethodInvocation = false]);
+  SubtypingConstraint(this.left, this.right, this.location, {this.isFromMethodInvocation = false, this.invalidatingExpression});
 
   @override
   bool isResolved() => this.left.isConcrete() || this.right.isConcrete();

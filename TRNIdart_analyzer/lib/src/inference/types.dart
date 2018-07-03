@@ -269,3 +269,29 @@ class MeetType extends IType {
   String toString() => "Meet${this.types}";
 
 }
+
+class SchrodingerType extends IType {
+  IType nonTop;
+
+  SchrodingerType(this.nonTop);
+
+  @override
+  bool equals(IType t) => t is SchrodingerType && this.nonTop.equals(t.nonTop);
+
+  @override
+  bool isConcrete() => false;
+
+  @override
+  bool subtypeOf(IType t) {
+    if (t is SchrodingerType) return nonTop.subtypeOf(t.nonTop);
+    if (t is ObjectType) return nonTop.subtypeOf(t);
+    return true;
+  }
+
+  @override
+  String toString() => "SchrodingerType(${this.nonTop})";
+
+  @override
+  bool operator ==(other) => this.equals(other);
+
+}

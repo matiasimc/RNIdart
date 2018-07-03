@@ -226,7 +226,8 @@ class ClassMemberVisitor extends SimpleAstVisitor {
       // TODO generate constraint for the initialization
       if (v.initializer != null) {
         BlockVisitor visitor = new BlockVisitor(store, cs, right, source, declaredStore, collector, new Bot());
-        cs.addConstraint(new SubtypingConstraint(visitor.processExpression(v.initializer), right, [location]));
+        v.initializer.accept(this);
+        cs.addConstraint(new SubtypingConstraint(store.expressions[v.initializer], right, [location]));
         v.initializer.accept(visitor);
       }
     }
@@ -254,23 +255,13 @@ class BlockVisitor extends RecursiveAstVisitor {
   Store store;
   ConstraintSet cs;
   IType returnType;
-  IType chainedCallParentType;
   IType chainedReturnType;
   Source source;
   Map<String, IType> declaredStore;
   ErrorCollector collector;
   IType pc;
-  IType lastExpression;
-  bool lastExpressionIsArgument;
 
-  BlockVisitor(this.store, this.cs, this.returnType, this.source, this.declaredStore, this.collector, this.pc, {this.lastExpression, this.lastExpressionIsArgument});
-
-  IType processExpression(Expression e, {isArgument: false}) {
-    IType ret = store.getTypeVariable(new Bot());
-    lastExpression = ret;
-    lastExpressionIsArgument = isArgument;
-    return ret;
-  }
+  BlockVisitor(this.store, this.cs, this.returnType, this.source, this.declaredStore, this.collector, this.pc);
 
   IType processReturnType(VariableDeclarationList node) {
     Annotation a = AnnotationHelper.getDeclared(node);
@@ -313,13 +304,8 @@ class BlockVisitor extends RecursiveAstVisitor {
 
   @override
   visitSimpleIdentifier(SimpleIdentifier node) {
-    ErrorLocation location = new ErrorLocation(source, node.length, node.offset, node);
-    if (lastExpression != null) {
-      IType varType = store.getTypeOrVariable(node.bestElement, defaultType: new Bot());
-      cs.addConstraint(new SubtypingConstraint(lastExpression, varType, [location]));
-      cs.addConstraint(new SubtypingConstraint(varType, lastExpression, [location]));
-      lastExpression = null;
-    }
+    IType t = store.getTypeOrVariable(node.bestElement, defaultType: new Bot());
+    this.store.expressions[node] = t;
     return super.visitSimpleIdentifier(node);
   }
 
@@ -360,20 +346,13 @@ class BlockVisitor extends RecursiveAstVisitor {
   }
 
   void visitAnyLiteral(AstNode node) {
-    ErrorLocation location = new ErrorLocation(source, node.length, node.offset, node);
-    if (lastExpression != null) {
-      IType t = store.getTypeVariable(new Bot(), dartCoreType: new Bot());
-      if (lastExpressionIsArgument) t = store.getTypeVariable(new Top(), dartCoreType: new Top());
-      cs.addConstraint(new SubtypingConstraint(lastExpression, t, [location]));
-      cs.addConstraint(new SubtypingConstraint(t, lastExpression, [location]));
-      lastExpression = null;
-    }
+    store.expressions[node] = new Bot();
   }
 
   @override
   visitIfStatement(IfStatement node) {
     node.condition.accept(this);
-    IType cond = processExpression(node.condition);
+    IType cond = store.expressions[node.condition];
     ErrorLocation location = new ErrorLocation(source, node.condition.length, node.condition.offset, node.condition);
     IType newPC = store.getTypeVariable(new Bot());
     this.cs.addConstraint(new SubtypingConstraint(cond, newPC, [location]));
@@ -387,8 +366,10 @@ class BlockVisitor extends RecursiveAstVisitor {
   visitAssignmentExpression(AssignmentExpression node) {
     log.shout("Found assignment expresion ${node}");
     ErrorLocation location = new ErrorLocation(source, node.length, node.offset, node);
-    IType left = processExpression(node.leftHandSide);
-    IType right = processExpression(node.rightHandSide);
+    node.leftHandSide.accept(this);
+    node.rightHandSide.accept(this);
+    IType left = store.expressions[node.leftHandSide];
+    IType right = store.expressions[node.rightHandSide];
     this.cs.addConstraint(new SubtypingConstraint(right, left, [location]));
     this.cs.addConstraint(new SubtypingConstraint(pc, left, [location]));
     return super.visitAssignmentExpression(node);
@@ -403,7 +384,8 @@ class BlockVisitor extends RecursiveAstVisitor {
       IType right = this.store.getTypeOrVariable(v.element, defaultType: new Bot());
       this.cs.addConstraint(new SubtypingConstraint(right, left, [location]));
       if (v.initializer != null) {
-        IType init = processExpression(v.initializer);
+        v.initializer.accept(this);
+        IType init = store.expressions[v.initializer];
         this.cs.addConstraint(new SubtypingConstraint(init, right, [location]));
         this.cs.addConstraint(new SubtypingConstraint(pc, right, [location]));
       }
@@ -413,16 +395,17 @@ class BlockVisitor extends RecursiveAstVisitor {
 
   @override
   visitPrefixedIdentifier(PrefixedIdentifier node) {
+    if (store.expressions.containsKey(node)) return super.visitPrefixedIdentifier(node);
     log.shout("Found field invocation on variable ${node}");
-    IType localLastExpression = lastExpression;
 
     Element propertyAccessor = node.identifier.bestElement;
+
+
     if (propertyAccessor is PropertyAccessorElement && !propertyAccessor.variable.isSynthetic) {
       ErrorLocation location = new ErrorLocation(this.source,node.length, node.offset, node);
       /*
       The target node of prefixedIndentifier is always a variable.
      */
-      IType target = this.store.getTypeOrVariable(node.prefix.bestElement, defaultType: new Bot());
 
       IType dartCoreType;
       if (propertyAccessor.variable.library != null && propertyAccessor.variable.library.isDartCore && !(node.parent is MethodInvocation || node.parent is PrefixedIdentifier || node.parent is PropertyAccess)) {
@@ -434,36 +417,18 @@ class BlockVisitor extends RecursiveAstVisitor {
 
       IType callType = new ObjectType({node.bestElement.name: fieldSignature});
 
-      if (target != null) {
-        this.cs.addConstraint(new SubtypingConstraint(target, callType, [location]));
-      }
+      store.expressions[node] = new SchrodingerType(fieldReturn);
+      node.prefix.accept(this);
 
-      if (localLastExpression != null) {
-        IType expType = fieldReturn;
-        if (target != null && target.isConcrete() && !target.subtypeOf(callType)) {
-          expType = new Top();
-          if ((node.parent is MethodInvocation || node.parent is PrefixedIdentifier || node.parent is PropertyAccess) && chainedReturnType != null) {
-            cs.addConstraint(new SubtypingConstraint(expType, chainedReturnType, [location]));
-          }
-          else chainedReturnType = null;
-        }
-        if (chainedReturnType == null) {
-          cs.addConstraint(new SubtypingConstraint(expType, localLastExpression, [location]));
-          cs.addConstraint(new SubtypingConstraint(localLastExpression, expType, [location]));
-        }
-        lastExpression = null;
+      IType target = store.expressions[node.prefix];
+
+      if (target != null) {
+        this.cs.addConstraint(new SubtypingConstraint(target, callType, [location], isFromMethodInvocation: true, invalidatingExpression: node));
       }
 
       /*
     no need to check for chainedCalls because this field call only occurs on variables.
      */
-
-      chainedCallParentType = target;
-      chainedCallParentType = target;
-      if (!(node.prefix is SimpleIdentifier) && node.prefix != null) {
-        if (chainedReturnType == null) chainedReturnType = fieldReturn;
-        node.prefix.accept(this);
-      }
     }
 
 
@@ -473,14 +438,13 @@ class BlockVisitor extends RecursiveAstVisitor {
 
   @override
   visitPropertyAccess(PropertyAccess node) {
+    if (store.expressions.containsKey(node)) return super.visitPropertyAccess(node);
     log.shout("Found field invocation on object ${node}");
-    IType localLastExpression = lastExpression;
 
     Element propertyAccessor = node.propertyName.bestElement;
     if (propertyAccessor is PropertyAccessorElement) {
       ErrorLocation location = new ErrorLocation(this.source,node.length, node.offset, node);
 
-      IType target = processExpression(node.target);
 
       IType dartCoreType;
       if (propertyAccessor.variable.library != null && propertyAccessor.variable.library.isDartCore && !(node.parent is MethodInvocation || node.parent is PrefixedIdentifier || node.parent is PropertyAccess)) {
@@ -492,66 +456,29 @@ class BlockVisitor extends RecursiveAstVisitor {
 
       IType callType = new ObjectType({node.propertyName.name: fieldSignature.rightSide});
 
+      store.expressions[node] = new SchrodingerType(fieldReturn);
+      node.target.accept(this);
+
+      IType target = store.expressions[node.target];
+
       if (target != null) {
-        this.cs.addConstraint(new SubtypingConstraint(target, callType, [location]));
+        this.cs.addConstraint(new SubtypingConstraint(target, callType, [location], isFromMethodInvocation: true, invalidatingExpression: node));
       }
-      if ((node.parent is MethodInvocation || node.parent is PrefixedIdentifier || node.parent is PropertyAccess) && chainedCallParentType != null) {
+
+      if ((node.parent is MethodInvocation || node.parent is PrefixedIdentifier || node.parent is PropertyAccess) && store.expressions.containsKey(node.parent)) {
         // y <: chainedCallParentType
         ErrorLocation parentLocation = new ErrorLocation(source, node.parent.length, node.parent.offset, node.parent);
-        this.cs.addConstraint(new SubtypingConstraint(fieldSignature.rightSide, chainedCallParentType, [parentLocation]));
-      }
-
-      if (localLastExpression != null) {
-        IType expType = fieldReturn;
-        if (target != null && target.isConcrete() && !target.subtypeOf(callType)) {
-          expType = new Top();
-          if ((node.parent is MethodInvocation || node.parent is PrefixedIdentifier || node.parent is PropertyAccess) && chainedReturnType != null) {
-            cs.addConstraint(new SubtypingConstraint(expType, chainedReturnType, [location]));
-          }
-          else chainedReturnType = null;
-        }
-        if (chainedReturnType == null) {
-          cs.addConstraint(new SubtypingConstraint(expType, localLastExpression, [location]));
-          cs.addConstraint(new SubtypingConstraint(localLastExpression, expType, [location]));
-        }
-        lastExpression = null;
-      }
-
-      /*
-    Finally, we update the variable that store the necessary type for chained
-    method calls.
-     */
-      chainedCallParentType = target;
-      if (!(node.target is SimpleIdentifier) && node.target != null) {
-        if (chainedReturnType == null) chainedReturnType = fieldReturn;
-        node.target.accept(this);
+        this.cs.addConstraint(new SubtypingConstraint(fieldSignature.rightSide, store.expressions[node.parent], [parentLocation]));
       }
     }
+    return super.visitPropertyAccess(node);
   }
 
   @override
   visitMethodInvocation(MethodInvocation node) {
     ErrorLocation location = new ErrorLocation(this.source, node.length, node.offset, node);
+    if (store.expressions.containsKey(node)) return super.visitMethodInvocation(node);
     log.shout("Found method invocation ${node}");
-    IType localLastExpression = lastExpression;
-    bool argAnalyzed = false;
-    /*
-    First, we identify the target node. If it's a variable, we get it from the
-    store. Else, we generate a type variable. Note that a target that has a
-    concrete type in the store has to be declared.
-     */
-    AstNode target = node.target;
-    IType targetType;
-    if (target is SimpleIdentifier) {
-      Element bestElement = target.bestElement;
-      if (bestElement is PropertyAccessorElement) {
-        targetType = this.store.getTypeOrVariable(bestElement.variable, defaultType: new Bot());
-      }
-      else {
-        targetType = this.store.getTypeOrVariable(bestElement, defaultType: new Bot());
-      }
-    }
-    if (targetType == null) targetType = this.store.getTypeVariable(new Bot());
     /*
     Now we check the method signature, generating the constraint between
     arguments and parameters.
@@ -564,8 +491,6 @@ class BlockVisitor extends RecursiveAstVisitor {
     }
     methodReturn = this.store.getTypeOrVariable(node.staticInvokeType.element, defaultType: new Bot(), dartCoreType: dartCoreType);
 
-    if (node.argumentList.arguments.isNotEmpty) argAnalyzed = true;
-
     variableParameters = node.argumentList.arguments.map((a) {
       IType parType;
       if (node.staticInvokeType.element.library != null && node.staticInvokeType.element.library.isDartCore) {
@@ -574,9 +499,9 @@ class BlockVisitor extends RecursiveAstVisitor {
       else {
         parType = this.store.getTypeOrVariable(a.bestParameterElement, defaultType: new Top());
       }
-      IType argType = processExpression(a, isArgument: true);
+      a.accept(this);
+      IType argType = store.expressions[a];
       this.cs.addConstraint(new SubtypingConstraint(argType, parType, [location]));
-      a.accept(new BlockVisitor(store, cs, returnType, source, declaredStore, collector, pc, lastExpression: lastExpression, lastExpressionIsArgument: lastExpressionIsArgument));
       return parType;
     }).toList();
 
@@ -589,48 +514,28 @@ class BlockVisitor extends RecursiveAstVisitor {
      */
     IType callType = new ObjectType(
         {node.methodName.toString(): methodSignature});
-    // TVar(i) <: {m: x -> y}
-    this.cs.addConstraint(new SubtypingConstraint(targetType, callType, [location], true));
 
+    store.expressions[node] = new SchrodingerType(methodReturn);
+    if (node.target != null){
+      node.target.accept(this);
+      IType targetType = store.expressions[node.target];
 
-    if ((node.parent is MethodInvocation || node.parent is PrefixedIdentifier || node.parent is PropertyAccess) && chainedCallParentType != null) {
+      // TVar(i) <: {m: x -> y}
+      this.cs.addConstraint(new SubtypingConstraint(targetType, callType, [location], isFromMethodInvocation: true, invalidatingExpression: node));
+    }
+
+    if ((node.parent is MethodInvocation || node.parent is PrefixedIdentifier || node.parent is PropertyAccess) && store.expressions.containsKey(node.parent)) {
       // y <: chainedCallParentType
       ErrorLocation parentLocation = new ErrorLocation(source, node.parent.length, node.parent.offset, node.parent);
-      this.cs.addConstraint(new SubtypingConstraint(methodSignature.rightSide, chainedCallParentType, [parentLocation]));
-    }
-
-    if (localLastExpression != null) {
-      IType expType = methodReturn;
-      if (targetType != null && targetType.isConcrete() && !targetType.subtypeOf(callType)) {
-        expType = new Top();
-        if ((node.parent is MethodInvocation || node.parent is PrefixedIdentifier || node.parent is PropertyAccess) && chainedReturnType != null) {
-          cs.addConstraint(new SubtypingConstraint(expType, chainedReturnType, [location]));
-        }
-        else chainedReturnType = null;
-      }
-      if (chainedReturnType == null) {
-        cs.addConstraint(new SubtypingConstraint(expType, localLastExpression, [location]));
-        cs.addConstraint(new SubtypingConstraint(localLastExpression, expType, [location]));
-      }
-      if (!argAnalyzed && targetType.isConcrete()) lastExpression = null;
-    }
-    /*
-    Finally, we update the variable that store the necessary type for chained
-    method calls.
-     */
-    chainedCallParentType = targetType;
-    if (!(target is SimpleIdentifier) && target != null) {
-      if (chainedReturnType == null) chainedReturnType = methodReturn;
-      target.accept(this);
+      this.cs.addConstraint(new SubtypingConstraint(methodSignature.rightSide, store.expressions[node.parent], [parentLocation]));
     }
   }
 
   @override
   visitInstanceCreationExpression(InstanceCreationExpression node) {
     ErrorLocation location = new ErrorLocation(this.source, node.length, node.offset, node);
+    if (store.expressions.containsKey(node)) return super.visitInstanceCreationExpression(node);
     log.shout("Found instance creation ${node}");
-    IType localLastExpression = lastExpression;
-    bool argAnalyzed = false;
     /*
     We check the constructor signature, generating the constraint between
     arguments and parameters.
@@ -642,7 +547,6 @@ class BlockVisitor extends RecursiveAstVisitor {
         dartCoreType = new Bot();
       }
       methodReturn = this.store.getTypeOrVariable(node.staticElement, defaultType: new Bot(), dartCoreType: dartCoreType);
-      argAnalyzed = node.argumentList.arguments.isNotEmpty;
 
       node.argumentList.arguments.forEach((a) {
         IType parType;
@@ -652,20 +556,17 @@ class BlockVisitor extends RecursiveAstVisitor {
         else {
           parType = this.store.getTypeOrVariable(a.bestParameterElement, defaultType: new Top());
         }
-        IType argType = processExpression(a, isArgument: true);
+        a.accept(this);
+        IType argType = store.expressions[a];
         this.cs.addConstraint(new SubtypingConstraint(argType, parType, [location]));
       });
 
-      if ((node.parent is MethodInvocation || node.parent is PrefixedIdentifier || node.parent is PropertyAccess) && chainedCallParentType != null) {
+      store.expressions[node] = methodReturn;
+
+      if ((node.parent is MethodInvocation || node.parent is PrefixedIdentifier || node.parent is PropertyAccess) && store.expressions.containsKey(node.parent)) {
         // y <: chainedCallParentType
         ErrorLocation parentLocation = new ErrorLocation(source, node.parent.length, node.parent.offset, node.parent);
-        this.cs.addConstraint(new SubtypingConstraint(methodReturn, chainedCallParentType, [parentLocation]));
-      }
-
-      if (localLastExpression != null) {
-        cs.addConstraint(new SubtypingConstraint(methodReturn, localLastExpression, [location]));
-        cs.addConstraint(new SubtypingConstraint(localLastExpression, methodReturn, [location]));
-        if (!argAnalyzed) lastExpression = null;
+        this.cs.addConstraint(new SubtypingConstraint(methodReturn, store.expressions[node.parent], [parentLocation]));
       }
     }
 
@@ -675,7 +576,8 @@ class BlockVisitor extends RecursiveAstVisitor {
   @override
   visitReturnStatement(ReturnStatement node) {
     ErrorLocation location = new ErrorLocation(this.source, node.length, node.offset, node);
-    this.cs.addConstraint(new SubtypingConstraint(processExpression(node.expression), this.returnType, [location]));
+    node.expression.accept(this);
+    this.cs.addConstraint(new SubtypingConstraint(store.expressions[node.expression], this.returnType, [location]));
     return super.visitReturnStatement(node);
   }
 }

@@ -11,11 +11,17 @@ class Store {
    */
   Map<int, IType> types;
 
+  /*
+  Map of expressions
+   */
+  Map<Expression, IType> expressions;
+
   int storeIndex, varIndex;
 
   Store() {
-    this.elements = new Map<Element, int>();
-    this.types = new Map<int, IType>();
+    this.elements = new Map();
+    this.types = new Map();
+    this.expressions = new Map();
     this.storeIndex = 0;
     this.varIndex = 0;
   }

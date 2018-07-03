@@ -30,9 +30,6 @@ class ConstraintSolver {
      */
     this.cs.constraints.removeWhere((c) => hasNull(c.left) || hasNull(c.right));
 
-    /*
-    First, we remove "dummy" constraints like Bot <: x or x <: Top
-     */
     log.shout("Step 0");
     /*
     Then, we reduce the case when we have x <: y and y <: x. To to this, we look
@@ -441,7 +438,7 @@ class ConstraintSolver {
           return c.right;
         }).toList()),
         subtypingSet.map((c2) => c2.location).expand((i) => i).toList(),
-    subtypingSet.map((c1) => c1.isFromMethodInvocation).reduce((b1, b2) => b1 || b2));
+    isFromMethodInvocation: subtypingSet.map((c1) => c1.isFromMethodInvocation).reduce((b1, b2) => b1 || b2));
 
     if (supertypingSet.isNotEmpty) supertypingConstraint = new SubtypingConstraint(
         new JoinType(supertypingSet.map((c) {
@@ -449,7 +446,7 @@ class ConstraintSolver {
         }).toList()),
         tvar,
         supertypingSet.map((c2) => c2.location).expand((i) => i).toList(),
-        supertypingSet.map((c1) => c1.isFromMethodInvocation).reduce((b1, b2) => b1 || b2));
+        isFromMethodInvocation: supertypingSet.map((c1) => c1.isFromMethodInvocation).reduce((b1, b2) => b1 || b2));
 
     set.retainAll([]);
 
