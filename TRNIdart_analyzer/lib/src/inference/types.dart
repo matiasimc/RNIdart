@@ -183,7 +183,7 @@ class Top extends ObjectType {
   bool operator ==(Object o) => o is Top;
 
   @override
-  bool subtypeOf(IType t) => t is Top || t is TVar;
+  bool subtypeOf(IType t) => t is Top || t is TVar || (t is MeetType && t.types.any((t1) => !t1.isConcrete() || t1 is Top || t1 is Bot)) || (t is JoinType && t.types.any((t1) => !t1.isConcrete() || t1 is Top || t1 is Bot));
 
   @override
   bool hasMember(String label, IType arrowType) => false;

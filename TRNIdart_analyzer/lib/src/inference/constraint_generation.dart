@@ -401,7 +401,7 @@ class BlockVisitor extends RecursiveAstVisitor {
     Element propertyAccessor = node.identifier.bestElement;
 
 
-    if (propertyAccessor is PropertyAccessorElement && !propertyAccessor.variable.isSynthetic) {
+    if (propertyAccessor is PropertyAccessorElement) {
       ErrorLocation location = new ErrorLocation(this.source,node.length, node.offset, node);
       /*
       The target node of prefixedIndentifier is always a variable.
@@ -411,13 +411,14 @@ class BlockVisitor extends RecursiveAstVisitor {
       if (propertyAccessor.variable.library != null && propertyAccessor.variable.library.isDartCore && !(node.parent is MethodInvocation || node.parent is PrefixedIdentifier || node.parent is PropertyAccess)) {
         dartCoreType = new Bot();
       }
-
+      IType variableReturn = this.store.getTypeVariable(new Bot());
       IType fieldReturn = this.store.getTypeOrVariable(propertyAccessor.variable, defaultType: new Bot(), dartCoreType: dartCoreType);
-      FieldType fieldSignature = new FieldType(fieldReturn);
+      FieldType fieldSignature = new FieldType(variableReturn);
+      this.cs.addConstraint(new SubtypingConstraint(variableReturn, fieldReturn, [location]));
 
       IType callType = new ObjectType({node.bestElement.name: fieldSignature});
 
-      store.expressions[node] = new SchrodingerType(fieldReturn);
+      store.expressions[node] = new SchrodingerType(variableReturn);
       node.prefix.accept(this);
 
       IType target = store.expressions[node.prefix];
@@ -442,7 +443,9 @@ class BlockVisitor extends RecursiveAstVisitor {
     log.shout("Found field invocation on object ${node}");
 
     Element propertyAccessor = node.propertyName.bestElement;
+    log.shout("${propertyAccessor.runtimeType}");
     if (propertyAccessor is PropertyAccessorElement) {
+      log.shout("estoy aca");
       ErrorLocation location = new ErrorLocation(this.source,node.length, node.offset, node);
 
 
@@ -451,12 +454,14 @@ class BlockVisitor extends RecursiveAstVisitor {
         dartCoreType = new Bot();
       }
       IType fieldReturn = this.store.getTypeOrVariable(propertyAccessor.variable, defaultType: new Bot(), dartCoreType: dartCoreType);
+      IType variableReturn = this.store.getTypeVariable(new Bot());
 
-      FieldType fieldSignature = new FieldType(fieldReturn);
+      FieldType fieldSignature = new FieldType(variableReturn);
+      this.cs.addConstraint(new SubtypingConstraint(variableReturn, fieldReturn, [location]));
 
-      IType callType = new ObjectType({node.propertyName.name: fieldSignature.rightSide});
+      IType callType = new ObjectType({node.propertyName.name: fieldSignature});
 
-      store.expressions[node] = new SchrodingerType(fieldReturn);
+      store.expressions[node] = new SchrodingerType(variableReturn);
       node.target.accept(this);
 
       IType target = store.expressions[node.target];
@@ -478,13 +483,14 @@ class BlockVisitor extends RecursiveAstVisitor {
     arguments and parameters.
      */
     IType methodReturn;
+    IType variableReturn;
     IType dartCoreType;
     List<IType> variableParameters;
     if (node.staticInvokeType.element.library != null && node.staticInvokeType.element.library.isDartCore && !(node.parent is MethodInvocation || node.parent is PrefixedIdentifier|| node.parent is PropertyAccess)) {
       dartCoreType = new Bot();
     }
     methodReturn = this.store.getTypeOrVariable(node.staticInvokeType.element, defaultType: new Bot(), dartCoreType: dartCoreType);
-
+    variableReturn = this.store.getTypeVariable(new Bot());
     variableParameters = node.argumentList.arguments.map((a) {
       IType parType;
       if (node.staticInvokeType.element.library != null && node.staticInvokeType.element.library.isDartCore) {
@@ -499,7 +505,9 @@ class BlockVisitor extends RecursiveAstVisitor {
       return parType;
     }).toList();
 
-    ArrowType methodSignature = new ArrowType(variableParameters, methodReturn);
+    this.cs.addConstraint(new SubtypingConstraint(variableReturn, methodReturn, [location]));
+
+    ArrowType methodSignature = new ArrowType(variableParameters, variableReturn);
 
     /*
     Now we generate the object type and the constraint for the target, and
@@ -509,7 +517,7 @@ class BlockVisitor extends RecursiveAstVisitor {
     IType callType = new ObjectType(
         {node.methodName.toString(): methodSignature});
 
-    store.expressions[node] = new SchrodingerType(methodReturn);
+    store.expressions[node] = new SchrodingerType(variableReturn);
     if (node.target != null) {
       node.target.accept(this);
       IType targetType = store.expressions[node.target];

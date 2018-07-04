@@ -372,6 +372,10 @@ class ConstraintSolver {
         IType right = substitute(source.rightSide, target, newType);
         return new FieldType(right);
       }
+      else if (source is SchrodingerType) {
+        source.nonTop = substitute(source.nonTop, target, newType);
+        return source;
+      }
       else if (source is Top) return source;
       else if (source is Bot) return source;
       else if (source is ObjectType) {
