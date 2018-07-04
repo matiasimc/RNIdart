@@ -10,7 +10,9 @@ abstract class Constraint {
   bool isResolved();
   bool isEmpty();
   bool isValid();
+  bool isInvalidMethodInvocation();
   bool isFromMethodInvocation;
+  Expression invalidatingExpression;
 }
 
 class SubtypingConstraint extends Constraint {
@@ -35,6 +37,9 @@ class SubtypingConstraint extends Constraint {
 
   @override
   bool isValid() => this.isFromMethodInvocation || this.left.subtypeOf(this.right);
+
+  @override
+  bool isInvalidMethodInvocation() => this.isFromMethodInvocation && !this.left.subtypeOf(this.right);
 }
 
 class ConstraintSet {

@@ -65,7 +65,7 @@ void main() {
 
     var source = mft.newSource("/test.dart", program);
     var result = mft.checkTypeForSourceWithQuery(source, "String s");
-    var members3 = new Map(); members3["substring"] = new ArrowType([new Top()], new Bot());
+    var members3 = new Map(); members3["substring"] = new ArrowType([new Bot()], new Bot());
     var members2 = new Map(); members2["toString"] = new ArrowType([], new ObjectType(members3));
     var members = new Map(); members["toLowerCase"] = new ArrowType([], new ObjectType(members2));
     expect(result, equals(new ObjectType(members)));

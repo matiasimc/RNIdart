@@ -1,4 +1,5 @@
 import 'package:TRNIdart_analyzer/TRNIdart_analyzer.dart';
+import 'dart:collection';
 
 class ConstraintSolver {
   final Logger log = new Logger("ConstraintSolver");
@@ -113,19 +114,28 @@ class ConstraintSolver {
       }
     }
 
-
     /*
     Remove dummy constraints
      */
     this.cs.constraints.removeWhere((Constraint c) => (c is SubtypingConstraint) && ((c.left is Bot) || (c.right is Top)));
 
     /*
-    We check the constraint set.
+    We check the constraint set, and replace the schrodinger types when
+    a constraint is invalid and is from method invocation.
      */
     checkConstraintsOnConstraintSet();
 
     log.shout("\n groupedConstraints: \n${groupedConstraints}");
     log.shout("\n constraintSet: \n${this.cs.constraints}");
+
+    LinkedHashSet<Constraint> retain = new LinkedHashSet(
+      equals: (Constraint c1, Constraint c2) => c1.left == c2.left && c1.right == c2.right,
+      hashCode: (Constraint c) => c.left.toString().length + c.right.toString().length
+    );
+    retain.addAll(this.cs.constraints);
+
+    this.cs.constraints = retain.toList();
+    this.cs.constraints.forEach(substituteForDartCoreType);
 
     /*
     We generate a map from the type variables to every constraint that has the
@@ -148,6 +158,7 @@ class ConstraintSolver {
     log.shout("\n groupedConstraints: \n${groupedConstraints}");
     log.shout("\n constraintSet: \n${this.cs.constraints}");
 
+
     /*
     Now, we look in descending order for type variables that are not in the
     grouped constraint map, and replace them with their default value
@@ -168,6 +179,7 @@ class ConstraintSolver {
       }
     }
 
+
     /*
     We iterate over the sets of the groupedConstraints map and reduce them.
      */
@@ -179,7 +191,6 @@ class ConstraintSolver {
 
     log.shout("\n groupedConstraints: \n${groupedConstraints}");
     log.shout("\n constraintSet: \n${this.cs.constraints}");
-
 
     /*
     We do the join and meet operations on resolved JoinTypes and MeetTypes
@@ -204,17 +215,10 @@ class ConstraintSolver {
     log.shout("\n constraintSet: \n${this.cs.constraints}");
 
     /*
-    Now, we check for invalid constraints to report errors.
-     */
-
-    log.shout("Step 7");
-    checkConstraintsOnGroupedSet();
-
-    /*
     Finally, we substitute in the store.
      */
 
-    log.shout("Step 8");
+    log.shout("Step 7");
     store.types.forEach((i, t) {
       if (groupedConstraints.containsKey(t)) {
         IType selected;
@@ -224,6 +228,10 @@ class ConstraintSolver {
         });
         store.types[i] = selected;
       }
+    });
+
+    store.types.forEach((i,t) {
+      store.types[i] = removeJoinMeetSchrodingerTypes(t);
     });
 
     store.elements.forEach((e,i) {
@@ -238,6 +246,13 @@ class ConstraintSolver {
           catch (e) {}
       }
     });
+  }
+
+  IType removeJoinMeetSchrodingerTypes(IType t) {
+    if (t is MeetType && t.types.length == 1) return removeJoinMeetSchrodingerTypes(t.types.first);
+    if (t is JoinType && t.types.length == 1) return removeJoinMeetSchrodingerTypes(t.types.first);
+    if (t is SchrodingerType) return t.nonTop;
+    return t;
   }
 
   void substituteWhereUntilEmpty(test, {bool replaceLeft = false}) {
@@ -290,7 +305,7 @@ class ConstraintSolver {
         }
       }
       allConstraint.remove(pop);
-      allConstraint.forEach(substituteForDartCoreType);
+      checkConstraintsOnGroupedSet();
       groupedConstraints.values.forEach((s) => resolveTypesInSet(s));
       filter = allConstraint.where(test).where((Constraint c) => !(c.left is Bot) && !(c.right is Top)).toList();
     }
@@ -298,8 +313,13 @@ class ConstraintSolver {
 
   void substituteForDartCoreType(Constraint c) {
     for (int i = 0; i < store.varIndex; i++) {
-      c.left = substituteTVarForDartCoreType(c.left, i);
-      c.right = substituteTVarForDartCoreType(c.right, i);
+      if (this.cs.constraints.where((c1) {
+        IType left = c1.left, right = c1.right;
+        return left is TVar && left.index == i && (right is ObjectType);
+      }).isEmpty) {
+        c.left = substituteTVarForDartCoreType(c.left, i);
+        c.right = substituteTVarForDartCoreType(c.right, i);
+      }
     }
   }
 
@@ -314,6 +334,10 @@ class ConstraintSolver {
       List<IType> left = source.leftSide.map((p) => substituteTVarForDartCoreType(p, index)).toList();
       IType right = substituteTVarForDartCoreType(source.rightSide, index);
       return new ArrowType(left.toList(), right);
+    }
+    else if (source is SchrodingerType) {
+      source.nonTop = substituteTVarForDartCoreType(source.nonTop, index);
+      return source;
     }
     else if (source is FieldType) {
       IType right = substituteTVarForDartCoreType(source.rightSide, index);
@@ -386,15 +410,43 @@ class ConstraintSolver {
   }
 
   void checkConstraintsOnConstraintSet() {
+    if (this.cs.constraints.where((c) => c.isInvalidMethodInvocation()).isEmpty) {
+      this.cs.constraints.forEach((c) {
+        IType left = c.left;
+        IType right = c.right;
+        if (left is SchrodingerType) c.left = substitute(c.left, c.left, left.nonTop);
+        if (right is SchrodingerType) c.right = substitute(c.right, c.right, right.nonTop);
+      });
+    }
     this.cs.constraints.forEach((c) {
+      if (c.isInvalidMethodInvocation()) {
+        IType invalidatingType = store.expressions[c.invalidatingExpression];
+        if (invalidatingType is SchrodingerType) {
+          this.cs.constraints.forEach((c1) {
+            c1.left = substitute(c1.left, invalidatingType, new Top());
+            c1.right = substitute(c1.right, invalidatingType, new Top());
+          });
+        }
+      }
       if (!c.isValid()) {
-        c.location.forEach((l) { if (!locationsWithErrors.contains(l)) locationsWithErrors.add(l); collector.errors.add(new SubtypingError(c, l));}
-        );}
+        c.location.forEach((l) {if (!locationsWithErrors.contains(l)) locationsWithErrors.add(l); collector.errors.add(new SubtypingError(c, l));});
+      }
     });
   }
 
   void checkConstraintsOnGroupedSet() {
+    List<Constraint> allConstraint = groupedConstraints.values.map((s) => s.toList()).expand((x) => x).toList();
+
     this.groupedConstraints.values.forEach((s) => s.forEach((c) {
+      if (c.isInvalidMethodInvocation()) {
+        IType invalidatingType = store.expressions[c.invalidatingExpression];
+        if (invalidatingType is SchrodingerType) {
+          this.groupedConstraints.values.forEach((s) => s.forEach((c1) {
+            c1.left = substitute(c1.left, invalidatingType, new Top());
+            c1.right = substitute(c1.right, invalidatingType, new Top());
+          }));
+        }
+      }
       if (!c.isValid()) {
         c.location.forEach((l) { if (!locationsWithErrors.contains(l)) locationsWithErrors.add(l); collector.errors.add(new SubtypingError(c, l));}
         );}
@@ -438,7 +490,8 @@ class ConstraintSolver {
           return c.right;
         }).toList()),
         subtypingSet.map((c2) => c2.location).expand((i) => i).toList(),
-    isFromMethodInvocation: subtypingSet.map((c1) => c1.isFromMethodInvocation).reduce((b1, b2) => b1 || b2));
+        isFromMethodInvocation: subtypingSet.map((c1) => c1.isFromMethodInvocation).reduce((b1, b2) => b1 || b2),
+        invalidatingExpression: subtypingSet.where((c1) => c1.invalidatingExpression != null).isNotEmpty ? subtypingSet.where((c2) => c2.invalidatingExpression != null).first.invalidatingExpression : null);
 
     if (supertypingSet.isNotEmpty) supertypingConstraint = new SubtypingConstraint(
         new JoinType(supertypingSet.map((c) {
@@ -446,7 +499,8 @@ class ConstraintSolver {
         }).toList()),
         tvar,
         supertypingSet.map((c2) => c2.location).expand((i) => i).toList(),
-        isFromMethodInvocation: supertypingSet.map((c1) => c1.isFromMethodInvocation).reduce((b1, b2) => b1 || b2));
+        isFromMethodInvocation: supertypingSet.map((c1) => c1.isFromMethodInvocation).reduce((b1, b2) => b1 || b2),
+        invalidatingExpression: supertypingSet.where((c1) => c1.invalidatingExpression != null).isNotEmpty ? supertypingSet.where((c2) => c2.invalidatingExpression != null).first.invalidatingExpression : null);
 
     set.retainAll([]);
 

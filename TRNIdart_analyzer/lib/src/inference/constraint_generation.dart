@@ -464,12 +464,6 @@ class BlockVisitor extends RecursiveAstVisitor {
       if (target != null) {
         this.cs.addConstraint(new SubtypingConstraint(target, callType, [location], isFromMethodInvocation: true, invalidatingExpression: node));
       }
-
-      if ((node.parent is MethodInvocation || node.parent is PrefixedIdentifier || node.parent is PropertyAccess) && store.expressions.containsKey(node.parent)) {
-        // y <: chainedCallParentType
-        ErrorLocation parentLocation = new ErrorLocation(source, node.parent.length, node.parent.offset, node.parent);
-        this.cs.addConstraint(new SubtypingConstraint(fieldSignature.rightSide, store.expressions[node.parent], [parentLocation]));
-      }
     }
     return super.visitPropertyAccess(node);
   }
@@ -516,18 +510,12 @@ class BlockVisitor extends RecursiveAstVisitor {
         {node.methodName.toString(): methodSignature});
 
     store.expressions[node] = new SchrodingerType(methodReturn);
-    if (node.target != null){
+    if (node.target != null) {
       node.target.accept(this);
       IType targetType = store.expressions[node.target];
 
       // TVar(i) <: {m: x -> y}
       this.cs.addConstraint(new SubtypingConstraint(targetType, callType, [location], isFromMethodInvocation: true, invalidatingExpression: node));
-    }
-
-    if ((node.parent is MethodInvocation || node.parent is PrefixedIdentifier || node.parent is PropertyAccess) && store.expressions.containsKey(node.parent)) {
-      // y <: chainedCallParentType
-      ErrorLocation parentLocation = new ErrorLocation(source, node.parent.length, node.parent.offset, node.parent);
-      this.cs.addConstraint(new SubtypingConstraint(methodSignature.rightSide, store.expressions[node.parent], [parentLocation]));
     }
   }
 
@@ -563,11 +551,6 @@ class BlockVisitor extends RecursiveAstVisitor {
 
       store.expressions[node] = methodReturn;
 
-      if ((node.parent is MethodInvocation || node.parent is PrefixedIdentifier || node.parent is PropertyAccess) && store.expressions.containsKey(node.parent)) {
-        // y <: chainedCallParentType
-        ErrorLocation parentLocation = new ErrorLocation(source, node.parent.length, node.parent.offset, node.parent);
-        this.cs.addConstraint(new SubtypingConstraint(methodReturn, store.expressions[node.parent], [parentLocation]));
-      }
     }
 
     return super.visitInstanceCreationExpression(node);
