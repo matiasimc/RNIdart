@@ -173,6 +173,7 @@ class ConstraintSolver {
         groupedConstraints[t].add(c);
       }
     }
+    checkConstraintsOnGroupedSet();
     log.shout("\n groupedConstraints: \n${groupedConstraints}");
     log.shout("\n constraintSet: \n${this.cs.constraints}");
 
@@ -362,7 +363,7 @@ class ConstraintSolver {
       allConstraint.remove(pop);
       checkConstraintsOnGroupedSet();
       groupedConstraints.values.forEach((s) => resolveTypesInSet(s));
-      filter = allConstraint.where(test).where((Constraint c) => !(c.left is Bot) && !(c.right is Top)).toList();
+      filter = allConstraint.where(test).toList();
     }
   }
 
@@ -440,6 +441,17 @@ class ConstraintSolver {
   void checkConstraintsOnGroupedSet() {
     List<Constraint> allConstraint = groupedConstraints.values.map((s) => s.toList()).expand((x) => x).toList();
 
+    this.groupedConstraints.values.forEach((s) {
+      if (s.length == 1 && s.first.isFromMethodInvocation) {
+        IType invalidatingType = store.expressions[s.first.invalidatingExpression];
+        allConstraint.forEach((c) {
+          IType left = c.left, right = c.right;
+          if (left is SchrodingerType && left.equals(invalidatingType)) c.left = substitute(c.left, c.left, left.nonTop);
+          if (right is SchrodingerType && right.equals(invalidatingType)) c.right = substitute(c.right, c.right, right.nonTop);
+        });
+      }
+    });
+
     this.groupedConstraints.values.forEach((s) => s.forEach((c) {
       if (c.isInvalidMethodInvocation()) {
         IType invalidatingType = store.expressions[c.invalidatingExpression];
@@ -468,6 +480,7 @@ class ConstraintSolver {
       if (t.types.any((t1) => t1 is Bot)) {
         return new Bot();
       }
+      else if (t.types.length == 1) return t.types.first;
       else if (!t.isConcrete()) return t;
       return t.types.reduce(meet);
     }
@@ -475,6 +488,7 @@ class ConstraintSolver {
       if (t.types.any((t1) => t1 is Top)) {
         return new Top();
       }
+      else if (t.types.length == 1) return t.types.first;
       else if (!t.isConcrete()) return t;
       else return t.types.reduce(join);
     }

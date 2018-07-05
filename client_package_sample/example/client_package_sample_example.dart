@@ -1,7 +1,9 @@
 import 'package:TRNIdart/src/public_interface.dart';
-class Person{
+
+class Person {
   @S("Top") String get name => "asd";
   int get age => 4;
+  bool get permission => true;
 }
 
 class Body{
@@ -9,9 +11,13 @@ class Body{
     return p.name;
   }
 }
-class Body2{
-  String foo(@S("Bot") Person p){
-    return p.name.toLowerCase();
+class Body2 {
+  String foo(@S("Top") Person p){
+    @S("Bot") String ret = "denegado";
+    if (p.permission) {
+      ret = "exito";
+    }
+    return ret;
   }
 }
 

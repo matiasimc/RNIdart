@@ -540,9 +540,16 @@ class BlockVisitor extends RecursiveAstVisitor {
   @override
   visitReturnStatement(ReturnStatement node) {
     ErrorLocation location = new ErrorLocation(this.source, node.length, node.offset, node);
-    log.shout("Expression in return is ${node.expression.runtimeType}");
     node.expression.accept(this);
     this.cs.addConstraint(new SubtypingConstraint(store.expressions[node.expression], this.returnType, [location]));
     return super.visitReturnStatement(node);
+  }
+
+  @override
+  visitExpressionFunctionBody(ExpressionFunctionBody node) {
+    ErrorLocation location = new ErrorLocation(this.source, node.length, node.offset, node);
+    node.expression.accept(this);
+    this.cs.addConstraint(new SubtypingConstraint(store.expressions[node.expression], this.returnType, [location]));
+    return super.visitExpressionFunctionBody(node);
   }
 }
