@@ -39,7 +39,7 @@ class SubtypingConstraint extends Constraint {
   bool isValid() => this.isFromMethodInvocation || this.left.subtypeOf(this.right);
 
   @override
-  bool isInvalidMethodInvocation() => this.isFromMethodInvocation && !this.left.subtypeOf(this.right);
+  bool isInvalidMethodInvocation() => (this.isFromMethodInvocation && !this.left.subtypeOf(this.right));
 }
 
 class ConstraintSet {

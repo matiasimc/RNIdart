@@ -2,6 +2,8 @@ import 'package:TRNIdart_analyzer/TRNIdart_analyzer.dart';
 import 'package:analyzer/src/generated/source.dart';
 import 'package:TRNIdart_analyzer/analyzer.dart';
 
+final CORE_PARAMETER_FACET = new Bot();
+final CORE_RETURN_FACET = new Bot();
 
 class CompilationUnitVisitor extends SimpleAstVisitor {
   final Logger log = new Logger("CompilationUnitVisitor");
@@ -16,30 +18,15 @@ class CompilationUnitVisitor extends SimpleAstVisitor {
 
   @override
   visitCompilationUnit(CompilationUnit node) {
+    Map<String, Element> abstractClasses = new Map();
+    node.declarations.where((d) => d is ClassDeclaration && d.isAbstract).forEach((c) => c.accept(new FirstDeclaredVisitor(abstractClasses)));
+    node.declarations.where((d) => d is ClassDeclaration && d.isAbstract).forEach((c) => c.accept(new SecondDeclaredVisitor(declaredStore, abstractClasses, CORE_PARAMETER_FACET, CORE_RETURN_FACET)));
     node.declarations.accept(this);
   }
 
   @override
   visitClassDeclaration(ClassDeclaration node) {
-    if (node.isAbstract && (source.uri.path == TRNIAnalyzer.secDartFile || testMode)) {
-      log.shout("Visiting abstract class ${node.name}");
-      DeclaredParser parser = new DeclaredParser();
-      node.accept(parser);
-      IType newT = parser.getType();
-      if (declaredStore.containsKey(node.element.name)) {
-        IType oldT = declaredStore[node.element.name];
-        this.store.types.forEach((i, t) {
-          if (t == oldT) this.store.types[i] = newT;
-        });
-        this.cs.constraints.forEach((c) {
-          ConstraintSolver solver = new ConstraintSolver(store, cs, collector);
-          c.left = solver.substitute(c.left, oldT, newT);
-          c.right = solver.substitute(c.right, oldT, newT);
-        });
-      }
-      this.declaredStore[node.element.name] = newT;
-    }
-    else {
+    if (!node.isAbstract) {
       log.shout("Visiting class ${node.name}");
       node.members.accept(new ClassMemberVisitor(this.store, this.cs, this.declaredStore, this.collector, this.source));
     }
@@ -82,7 +69,7 @@ class ClassMemberVisitor extends SimpleAstVisitor {
       String facet = a.arguments.arguments.first.toString().replaceAll("\"", "");
       if (this.declaredStore.containsKey(facet)) {
         IType old = this.store.getType(node.element);
-        this.store.addElement(node.element, new Bot(), declaredType: declaredStore[facet]);
+        if (!(node is FieldDeclaration)) this.store.addElement(node.element, declaredType: declaredStore[facet]);
         if (old != null) {
           this.cs.constraints.forEach((c) {
             ConstraintSolver solver = new ConstraintSolver(store, cs, collector);
@@ -99,7 +86,7 @@ class ClassMemberVisitor extends SimpleAstVisitor {
          */
         try {
           collector.errors.add(new UndefinedFacetError(node.element, facet));
-          right = this.store.getTypeVariable(new Bot());
+          right = this.store.getTypeVariable();
           this.declaredStore[facet] = right;
         }
         catch(e){}
@@ -107,7 +94,7 @@ class ClassMemberVisitor extends SimpleAstVisitor {
       }
     }
     else {
-      right = store.getTypeVariable(new Bot());
+      right = store.getTypeVariable();
     }
     return right;
   }
@@ -116,14 +103,14 @@ class ClassMemberVisitor extends SimpleAstVisitor {
     List<IType> left = node.element.parameters.map((p) {
       Annotation a = AnnotationHelper.getDeclaredForParameter(p.computeNode());
       if (a == null) {
-        IType tvar = store.getTypeOrVariable(p, defaultType: new Top());
+        IType tvar = store.getTypeOrVariable(p);
         return tvar;
       }
       else {
         String facet = a.arguments.arguments.first.toString().replaceAll("\"", "");
         if (this.declaredStore.containsKey(facet)) {
           IType old = this.store.getType(p);
-          this.store.addElement(p, new Bot(), declaredType: declaredStore[facet]);
+          this.store.addElement(p, declaredType: declaredStore[facet]);
           if (old != null) {
             this.cs.constraints.forEach((c) {
               ConstraintSolver solver = new ConstraintSolver(store, cs, collector);
@@ -136,7 +123,7 @@ class ClassMemberVisitor extends SimpleAstVisitor {
         else {
           try {
             collector.errors.add(new UndefinedFacetError(p, facet));
-            IType tvar1 = this.store.getTypeVariable(new Top());
+            IType tvar1 = this.store.getTypeVariable();
             this.declaredStore[facet] = tvar1;
             return tvar1;
           }
@@ -151,14 +138,14 @@ class ClassMemberVisitor extends SimpleAstVisitor {
     List<IType> left = node.element.parameters.map((p) {
       Annotation a = AnnotationHelper.getDeclaredForParameter(p.computeNode());
       if (a == null) {
-        IType tvar = store.getTypeOrVariable(p, defaultType: new Top());
+        IType tvar = store.getTypeOrVariable(p);
         return tvar;
       }
       else {
         String facet = a.arguments.arguments.first.toString().replaceAll("\"", "");
         if (this.declaredStore.containsKey(facet)) {
           IType old = this.store.getType(p);
-          this.store.addElement(p, new Bot(), declaredType: declaredStore[facet]);
+          this.store.addElement(p, declaredType: declaredStore[facet]);
           if (old != null) {
             this.cs.constraints.forEach((c) {
               ConstraintSolver solver = new ConstraintSolver(store, cs, collector);
@@ -171,7 +158,7 @@ class ClassMemberVisitor extends SimpleAstVisitor {
         else {
           try {
             collector.errors.add(new UndefinedFacetError(p, facet));
-            IType tvar1 = this.store.getTypeVariable(new Top());
+            IType tvar1 = this.store.getTypeVariable();
             this.declaredStore[facet] = tvar1;
             return tvar1;
           }
@@ -201,10 +188,9 @@ class ClassMemberVisitor extends SimpleAstVisitor {
     constraint associating the type in the store with the newly created arrow
     type.
      */
-    if (!store.hasElement(node.element)) store.addElement(node.element, new Bot(), declaredType: right);
+    if (!store.hasElement(node.element)) store.addElement(node.element, declaredType: right);
     else {
       cs.addConstraint(new SubtypingConstraint(right, store.getType(node.element), [location]));
-      //cs.addConstraint(new SubtypingConstraint(store.getType(node.element), right, [location]));
     }
     /*
     Finally, we process the method body.
@@ -218,17 +204,14 @@ class ClassMemberVisitor extends SimpleAstVisitor {
     ErrorLocation location = new ErrorLocation(this.source, node.length, node.offset, node);
     IType right = processReturnType(node);
     for (VariableDeclaration v in node.fields.variables) {
-      if (!store.hasElement(v.name.bestElement)) store.addElement(v.name.bestElement, new Bot(), declaredType: right);
+      if (!store.hasElement(v.name.bestElement)) store.addElement(v.name.bestElement, declaredType: right);
       else {
-        cs.addConstraint(new SubtypingConstraint(store.getType(v.name.bestElement), right, [location]));
         cs.addConstraint(new SubtypingConstraint(right, store.getType(v.name.bestElement), [location]));
       }
-      // TODO generate constraint for the initialization
       if (v.initializer != null) {
         BlockVisitor visitor = new BlockVisitor(store, cs, right, source, declaredStore, collector, new Bot());
-        v.initializer.accept(this);
-        cs.addConstraint(new SubtypingConstraint(store.expressions[v.initializer], right, [location]));
         v.initializer.accept(visitor);
+        cs.addConstraint(new SubtypingConstraint(store.expressions[v.initializer], right, [location]));
       }
     }
   }
@@ -240,10 +223,9 @@ class ClassMemberVisitor extends SimpleAstVisitor {
     processParametersTypeForConstructor(node);
     IType right = processReturnType(node);
     if (!store.hasElement(node.element)) {
-      store.addElement(node.element, new Bot(), declaredType: right);
+      store.addElement(node.element, declaredType: right);
     }
     else {
-      cs.addConstraint(new SubtypingConstraint(store.getType(node.element), right, [location]));
       cs.addConstraint(new SubtypingConstraint(right, store.getType(node.element), [location]));
     }
     node.body.accept(new BlockVisitor(this.store, this.cs, right, this.source, this.declaredStore, this.collector, new Bot()));
@@ -271,7 +253,7 @@ class BlockVisitor extends RecursiveAstVisitor {
       if (this.declaredStore.containsKey(facet)) {
         for (VariableDeclaration v in node.variables) {
           IType old = this.store.getType(v.element);
-          this.store.addElement(v.element, new Bot(), declaredType: declaredStore[facet]);
+          this.store.addElement(v.element, declaredType: declaredStore[facet]);
           if (old != null) {
             this.cs.constraints.forEach((c) {
               ConstraintSolver solver = new ConstraintSolver(store, cs, collector);
@@ -291,20 +273,20 @@ class BlockVisitor extends RecursiveAstVisitor {
           for (VariableDeclaration v in node.variables) {
             collector.errors.add(new UndefinedFacetError(v.element, facet));
           }
-          right = this.store.getTypeVariable(new Bot());
+          right = this.store.getTypeVariable();
           this.declaredStore[facet] = right;
         }
         catch(e){}
 
       }
     }
-    else right = store.getTypeVariable(new Bot());
+    else right = store.getTypeVariable();
     return right;
   }
 
   @override
   visitSimpleIdentifier(SimpleIdentifier node) {
-    IType t = store.getTypeOrVariable(node.bestElement, defaultType: new Bot());
+    IType t = store.getTypeOrVariable(node.bestElement);
     this.store.expressions[node] = t;
     return super.visitSimpleIdentifier(node);
   }
@@ -354,7 +336,7 @@ class BlockVisitor extends RecursiveAstVisitor {
     node.condition.accept(this);
     IType cond = store.expressions[node.condition];
     ErrorLocation location = new ErrorLocation(source, node.condition.length, node.condition.offset, node.condition);
-    IType newPC = store.getTypeVariable(new Bot());
+    IType newPC = store.getTypeVariable();
     this.cs.addConstraint(new SubtypingConstraint(cond, newPC, [location]));
     this.cs.addConstraint(new SubtypingConstraint(pc, newPC, [location]));
     BlockVisitor visitor = new BlockVisitor(store, cs, returnType, source, declaredStore, collector, newPC);
@@ -381,7 +363,7 @@ class BlockVisitor extends RecursiveAstVisitor {
     IType left = processReturnType(node);
     ErrorLocation location = new ErrorLocation(source, node.length, node.offset, node);
     for (VariableDeclaration v in node.variables) {
-      IType right = this.store.getTypeOrVariable(v.element, defaultType: new Bot());
+      IType right = this.store.getTypeOrVariable(v.name.bestElement);
       this.cs.addConstraint(new SubtypingConstraint(right, left, [location]));
       if (v.initializer != null) {
         v.initializer.accept(this);
@@ -404,21 +386,20 @@ class BlockVisitor extends RecursiveAstVisitor {
     if (propertyAccessor is PropertyAccessorElement) {
       ErrorLocation location = new ErrorLocation(this.source,node.length, node.offset, node);
       /*
-      The target node of prefixedIndentifier is always a variable.
+      The target node of prefixedIdentifier is always a variable.
      */
 
-      IType dartCoreType;
       if (propertyAccessor.variable.library != null && propertyAccessor.variable.library.isDartCore && !(node.parent is MethodInvocation || node.parent is PrefixedIdentifier || node.parent is PropertyAccess)) {
-        dartCoreType = new Bot();
+        this.store.addElement(propertyAccessor.variable, declaredType: CORE_RETURN_FACET);
       }
-      IType variableReturn = this.store.getTypeVariable(new Bot());
-      IType fieldReturn = this.store.getTypeOrVariable(propertyAccessor.variable, defaultType: new Bot(), dartCoreType: dartCoreType);
+      IType variableReturn = this.store.getTypeVariable();
+      IType fieldReturn = this.store.getTypeOrVariable(propertyAccessor.variable.getter);
       FieldType fieldSignature = new FieldType(variableReturn);
       this.cs.addConstraint(new SubtypingConstraint(variableReturn, fieldReturn, [location]));
 
       IType callType = new ObjectType({node.bestElement.name: fieldSignature});
 
-      store.expressions[node] = new SchrodingerType(variableReturn);
+      store.expressions[node] = this.store.getSchrodingerType(variableReturn);
       node.prefix.accept(this);
 
       IType target = store.expressions[node.prefix];
@@ -445,23 +426,20 @@ class BlockVisitor extends RecursiveAstVisitor {
     Element propertyAccessor = node.propertyName.bestElement;
     log.shout("${propertyAccessor.runtimeType}");
     if (propertyAccessor is PropertyAccessorElement) {
-      log.shout("estoy aca");
       ErrorLocation location = new ErrorLocation(this.source,node.length, node.offset, node);
 
-
-      IType dartCoreType;
       if (propertyAccessor.variable.library != null && propertyAccessor.variable.library.isDartCore && !(node.parent is MethodInvocation || node.parent is PrefixedIdentifier || node.parent is PropertyAccess)) {
-        dartCoreType = new Bot();
+        this.store.addElement(propertyAccessor.variable, declaredType: CORE_RETURN_FACET);
       }
-      IType fieldReturn = this.store.getTypeOrVariable(propertyAccessor.variable, defaultType: new Bot(), dartCoreType: dartCoreType);
-      IType variableReturn = this.store.getTypeVariable(new Bot());
+      IType fieldReturn = this.store.getTypeOrVariable(propertyAccessor.variable);
+      IType variableReturn = this.store.getTypeVariable();
 
       FieldType fieldSignature = new FieldType(variableReturn);
       this.cs.addConstraint(new SubtypingConstraint(variableReturn, fieldReturn, [location]));
 
       IType callType = new ObjectType({node.propertyName.name: fieldSignature});
 
-      store.expressions[node] = new SchrodingerType(variableReturn);
+      store.expressions[node] = this.store.getSchrodingerType(variableReturn);
       node.target.accept(this);
 
       IType target = store.expressions[node.target];
@@ -484,21 +462,18 @@ class BlockVisitor extends RecursiveAstVisitor {
      */
     IType methodReturn;
     IType variableReturn;
-    IType dartCoreType;
     List<IType> variableParameters;
     if (node.staticInvokeType.element.library != null && node.staticInvokeType.element.library.isDartCore && !(node.parent is MethodInvocation || node.parent is PrefixedIdentifier|| node.parent is PropertyAccess)) {
-      dartCoreType = new Bot();
+      this.store.addElement(node.staticInvokeType.element, declaredType: CORE_RETURN_FACET);
     }
-    methodReturn = this.store.getTypeOrVariable(node.staticInvokeType.element, defaultType: new Bot(), dartCoreType: dartCoreType);
-    variableReturn = this.store.getTypeVariable(new Bot());
+    methodReturn = this.store.getTypeOrVariable(node.staticInvokeType.element);
+    variableReturn = this.store.getTypeVariable();
     variableParameters = node.argumentList.arguments.map((a) {
       IType parType;
       if (node.staticInvokeType.element.library != null && node.staticInvokeType.element.library.isDartCore) {
-        parType = this.store.getTypeVariable(new Top(), dartCoreType: new Top());
+        this.store.addElement(a.bestParameterElement, declaredType: CORE_PARAMETER_FACET);
       }
-      else {
-        parType = this.store.getTypeOrVariable(a.bestParameterElement, defaultType: new Top());
-      }
+      parType = this.store.getTypeOrVariable(a.bestParameterElement);
       a.accept(this);
       IType argType = store.expressions[a];
       this.cs.addConstraint(new SubtypingConstraint(argType, parType, [location]));
@@ -517,7 +492,7 @@ class BlockVisitor extends RecursiveAstVisitor {
     IType callType = new ObjectType(
         {node.methodName.toString(): methodSignature});
 
-    store.expressions[node] = new SchrodingerType(variableReturn);
+    store.expressions[node] = this.store.getSchrodingerType(variableReturn);
     if (node.target != null) {
       node.target.accept(this);
       IType targetType = store.expressions[node.target];
@@ -538,19 +513,17 @@ class BlockVisitor extends RecursiveAstVisitor {
      */
     if (node.staticElement != null) {
       IType methodReturn;
-      IType dartCoreType;
       if (node.staticElement.library != null && node.staticElement.library.isDartCore) {
-        dartCoreType = new Bot();
+        this.store.addElement(node.staticElement, declaredType: CORE_RETURN_FACET);
       }
-      methodReturn = this.store.getTypeOrVariable(node.staticElement, defaultType: new Bot(), dartCoreType: dartCoreType);
+      methodReturn = this.store.getTypeOrVariable(node.staticElement);
 
       node.argumentList.arguments.forEach((a) {
         IType parType;
         if (node.staticElement.library != null && node.staticElement.library.isDartCore) {
-          parType = this.store.getTypeVariable(new Top(), dartCoreType: new Top());
-        }
+          this.store.addElement(a.bestParameterElement, declaredType: CORE_PARAMETER_FACET);        }
         else {
-          parType = this.store.getTypeOrVariable(a.bestParameterElement, defaultType: new Top());
+          parType = this.store.getTypeOrVariable(a.bestParameterElement);
         }
         a.accept(this);
         IType argType = store.expressions[a];
@@ -567,6 +540,7 @@ class BlockVisitor extends RecursiveAstVisitor {
   @override
   visitReturnStatement(ReturnStatement node) {
     ErrorLocation location = new ErrorLocation(this.source, node.length, node.offset, node);
+    log.shout("Expression in return is ${node.expression.runtimeType}");
     node.expression.accept(this);
     this.cs.addConstraint(new SubtypingConstraint(store.expressions[node.expression], this.returnType, [location]));
     return super.visitReturnStatement(node);

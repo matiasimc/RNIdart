@@ -1,32 +1,67 @@
 import 'package:TRNIdart_analyzer/TRNIdart_analyzer.dart';
 
-class DeclaredParser extends SimpleAstVisitor {
+class FirstDeclaredVisitor extends SimpleAstVisitor {
+  Map<String, Element> abstractClasses;
 
-  IType _type;
+  FirstDeclaredVisitor(this.abstractClasses);
 
-  IType getType() => this._type;
+  @override
+  visitClassDeclaration(ClassDeclaration node) {
+    abstractClasses[node.element.name] = node.element;
+  }
+}
+
+class SecondDeclaredVisitor extends SimpleAstVisitor {
+  final Logger log = new Logger("SecondDeclaredVisitor");
+  Map<String, IType> declaredStore;
+  Map<String, Element> abstractClasses;
+  IType CORE_PARAMETER_FACET;
+  IType CORE_RETURN_FACET;
+
+  SecondDeclaredVisitor(this.declaredStore, this.abstractClasses, this.CORE_PARAMETER_FACET, this.CORE_RETURN_FACET);
 
   @override
   visitClassDeclaration(ClassDeclaration node) {
     Logger.root.shout("Faceta declarada ${node.name}");
-    if (node.element.name == "Top") _type = new Top();
-    else if (node.element.name == "Bot") _type = new Bot();
-    else {
-      ObjectType ot = new ObjectType();
-      for (ClassMember m in node.members) {
-        IType signature;
-        String label = "";
-        if (m is MethodDeclaration) {
-          signature = new ArrowType(m.parameters.parameters.map((p) => new Top()).toList(), new Bot());
-          label = m.name.toString();
+    if (declaredStore.containsKey(node.name)) return;
+    ObjectType ot = new ObjectType();
+    for (ClassMember m in node.members) {
+      String label = "";
+      IType signature;
+      if (m is MethodDeclaration) {
+        label = m.name.toString();
+        List<IType> left = m.parameters.parameters.map((p) {
+          if (AnnotationHelper.elementHasDeclared(p.element)) {
+            Annotation a = AnnotationHelper.getDeclaredForParameter(p);
+            String facet = a.arguments.arguments.first.toString().replaceAll("\"", "");
+            if (abstractClasses.containsKey(facet)) abstractClasses[facet].computeNode().accept(this);
+            IType typeP = declaredStore.containsKey(facet) ? declaredStore[facet] : CORE_PARAMETER_FACET;
+            return typeP;
+          }
+          else return CORE_PARAMETER_FACET;
+        }).toList();
+        IType right = CORE_RETURN_FACET;
+        Annotation a = AnnotationHelper.getDeclared(m);
+        if (a != null) {
+          String facet = a.arguments.arguments.first.toString().replaceAll("\"", "");
+          if (abstractClasses.containsKey(facet)) abstractClasses[facet].computeNode().accept(this);
+          right = declaredStore.containsKey(facet) ? declaredStore[facet] : CORE_PARAMETER_FACET;
         }
-        if (m is FieldDeclaration) {
-          signature = new Bot();
-          if (m.element != null) label = m.element.name;
-        }
-        ot.addMember(label, signature);
+        signature = new ArrowType(left, right);
       }
-      _type = ot;
+      if (m is FieldDeclaration) {
+        if (m.fields.variables.first != null) label = m.fields.variables.first.element.name;
+        IType right = CORE_RETURN_FACET;
+        Annotation a = AnnotationHelper.getDeclared(m);
+        if (a != null) {
+          String facet = a.arguments.arguments.first.toString().replaceAll("\"", "");
+          if (abstractClasses.containsKey(facet)) abstractClasses[facet].computeNode().accept(this);
+          right = declaredStore.containsKey(facet) ? declaredStore[facet] : CORE_PARAMETER_FACET;
+        }
+        signature = new FieldType(right);
+      }
+      ot.addMember(label, signature);
     }
+    declaredStore[node.element.name] = ot;
   }
 }

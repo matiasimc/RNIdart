@@ -7,13 +7,11 @@ abstract class  IType {
 
 class TVar extends IType {
   int index;
-  IType defaultType;
-  IType dartCoreType;
 
   @override
   bool isConcrete() => false;
 
-  TVar(this.index, this.defaultType, {this.dartCoreType});
+  TVar(this.index);
 
   String toString() => "TVar(${this.index})";
 
@@ -272,11 +270,12 @@ class MeetType extends IType {
 
 class SchrodingerType extends IType {
   IType nonTop;
+  int index;
 
-  SchrodingerType(this.nonTop);
+  SchrodingerType(this.nonTop, this.index);
 
   @override
-  bool equals(IType t) => t is SchrodingerType && this.nonTop.equals(t.nonTop);
+  bool equals(IType t) => t is SchrodingerType && this.nonTop.equals(t.nonTop) && this.index == t.index;
 
   @override
   bool isConcrete() => false;

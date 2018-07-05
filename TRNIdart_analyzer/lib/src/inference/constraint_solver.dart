@@ -135,7 +135,6 @@ class ConstraintSolver {
     retain.addAll(this.cs.constraints);
 
     this.cs.constraints = retain.toList();
-    this.cs.constraints.forEach(substituteForDartCoreType);
 
     /*
     We generate a map from the type variables to every constraint that has the
@@ -154,6 +153,25 @@ class ConstraintSolver {
         if (!groupedConstraints.containsKey(right)) groupedConstraints[right] = new Set<Constraint>();
         groupedConstraints[right].add(c);
       }
+      if (left is SchrodingerType) {
+        IType t = left.nonTop;
+        if (t is TVar) {
+          if (!groupedConstraints.containsKey(t)) groupedConstraints[t] = new Set<Constraint>();
+          groupedConstraints[t].add(c);
+        }
+      }
+      if (right is SchrodingerType) {
+        IType t = right.nonTop;
+        if (t is TVar) {
+          if (!groupedConstraints.containsKey(t)) groupedConstraints[t] = new Set<Constraint>();
+          groupedConstraints[t].add(c);
+        }
+      }
+      if (!(left is TVar || left is SchrodingerType) && !(right is TVar || right is SchrodingerType)) {
+        TVar t = new TVar(-1);
+        if (!groupedConstraints.containsKey(t)) groupedConstraints[t] = new Set();
+        groupedConstraints[t].add(c);
+      }
     }
     log.shout("\n groupedConstraints: \n${groupedConstraints}");
     log.shout("\n constraintSet: \n${this.cs.constraints}");
@@ -161,7 +179,7 @@ class ConstraintSolver {
 
     /*
     Now, we look in descending order for type variables that are not in the
-    grouped constraint map, and replace them with their default value
+    grouped constraint map, and replace them with Bot.
      */
     log.shout("Step 3");
     for (int i = this.store.varIndex; i >= 0; i--) {
@@ -169,12 +187,12 @@ class ConstraintSolver {
         for (Constraint c in this.cs.constraints) {
           var tVars = searchTVar(c.right, i);
           if (tVars.isNotEmpty)
-            c.right = substitute(c.right, tVars.first, tVars.first.defaultType);
+            c.right = substitute(c.right, tVars.first, new Bot());
         }
         for (int m in this.store.types.keys) {
           var tVars = searchTVar(this.store.types[m], i);
           if (tVars.isNotEmpty)
-            this.store.types[m] = substitute(this.store.types[m], tVars.first, tVars.first.defaultType);
+            this.store.types[m] = substitute(this.store.types[m], tVars.first, new Bot());
         }
       }
     }
@@ -209,7 +227,7 @@ class ConstraintSolver {
     The resolved constraints should be added to a list.
      */
     log.shout("Step 6");
-    substituteWhereUntilEmpty((Constraint c) => c.isResolved() && (c.left.isVariable() || c.right.isVariable()), replaceLeft: true);
+    substituteWhereUntilEmpty((Constraint c) => c.isResolved() && (c.left.isVariable() || c.left is SchrodingerType || c.right.isVariable() || c.right is SchrodingerType), replaceLeft: true);
 
     log.shout("\n groupedConstraints: \n${groupedConstraints}");
     log.shout("\n constraintSet: \n${this.cs.constraints}");
@@ -235,7 +253,7 @@ class ConstraintSolver {
     });
 
     store.elements.forEach((e,i) {
-      if (!store.getType(e).isConcrete())
+      if (store.getType(e) != null && !store.getType(e).isConcrete())
         collector.errors.add(new UnableToResolveError(e));
       else {
         if (!AnnotationHelper.elementHasDeclared(e))
@@ -267,6 +285,8 @@ class ConstraintSolver {
       Constraint pop = filter.removeLast();
       for (Constraint c in allConstraint) {
         if (c != pop) {
+          IType left = pop.left;
+          IType right = pop.right;
           if (pop.left.isVariable()) {
             IType oldRight = c.right;
             IType oldLeft = c.left;
@@ -281,6 +301,41 @@ class ConstraintSolver {
               if (oldLeft != newLeft) {
                 c.location.addAll(pop.location);
                 c.isFromMethodInvocation = c.isFromMethodInvocation || pop.isFromMethodInvocation;
+              }
+              c.left = newLeft;
+            }
+          }
+          else if (left is SchrodingerType) {
+            IType oldRight = c.right;
+            IType oldLeft = c.left;
+            IType newRight = substitute(c.right, left.nonTop, pop.right);
+            IType newLeft = substitute(c.left, left.nonTop, pop.right);
+            if (oldRight != newRight) {
+              c.location.insertAll(0,pop.location);
+              c.isFromMethodInvocation = c.isFromMethodInvocation || pop.isFromMethodInvocation;
+            }
+            c.right = newRight;
+            if (replaceLeft) {
+              if (oldLeft != newLeft) {
+                c.location.addAll(pop.location);
+                c.isFromMethodInvocation = c.isFromMethodInvocation || pop.isFromMethodInvocation;
+              }
+              c.left = newLeft;
+            }
+          }
+          else if (right is SchrodingerType) {
+            IType oldRight = c.right;
+            IType oldLeft = c.left;
+            IType newRight = substitute(c.right, right.nonTop, pop.left);
+            IType newLeft = substitute(c.left, right.nonTop, pop.left);
+            if (oldRight != newRight) {
+              c.location.insertAll(0,pop.location);
+            }
+            c.right = newRight;
+            if (replaceLeft) {
+              if (oldLeft != newLeft) {
+                c.isFromMethodInvocation = c.isFromMethodInvocation || pop.isFromMethodInvocation;
+                c.location.addAll(pop.location);
               }
               c.left = newLeft;
             }
@@ -311,57 +366,8 @@ class ConstraintSolver {
     }
   }
 
-  void substituteForDartCoreType(Constraint c) {
-    for (int i = 0; i < store.varIndex; i++) {
-      if (this.cs.constraints.where((c1) {
-        IType left = c1.left, right = c1.right;
-        return left is TVar && left.index == i && (right is ObjectType);
-      }).isEmpty) {
-        c.left = substituteTVarForDartCoreType(c.left, i);
-        c.right = substituteTVarForDartCoreType(c.right, i);
-      }
-    }
-  }
-
-  IType substituteTVarForDartCoreType(IType source, int index) {
-    if (source is TVar) {
-      if (source.index == index && source.dartCoreType != null) {
-        return source.dartCoreType;
-      }
-      else return source;
-    }
-    else if (source is ArrowType) {
-      List<IType> left = source.leftSide.map((p) => substituteTVarForDartCoreType(p, index)).toList();
-      IType right = substituteTVarForDartCoreType(source.rightSide, index);
-      return new ArrowType(left.toList(), right);
-    }
-    else if (source is SchrodingerType) {
-      source.nonTop = substituteTVarForDartCoreType(source.nonTop, index);
-      return source;
-    }
-    else if (source is FieldType) {
-      IType right = substituteTVarForDartCoreType(source.rightSide, index);
-      return new FieldType(right);
-    }
-    else if (source is Top) return source;
-    else if (source is Bot) return source;
-    else if (source is ObjectType) {
-      Map members = source.members.map((label, arrowType) => new MapEntry(label, substituteTVarForDartCoreType(arrowType, index)));
-      return new ObjectType(members);
-    }
-    else if (source is JoinType) {
-      List<IType> types = source.types.map((t) => substituteTVarForDartCoreType(t, index)).toList();
-      return new JoinType(types);
-    }
-    else if (source is MeetType) {
-      List<IType> types = source.types.map((t) => substituteTVarForDartCoreType(t, index)).toList();
-      return new MeetType(types);
-    }
-    return source;
-  }
-
   IType substitute(IType source, IType target, IType newType) {
-    if (source.equals(target)) return newType;
+    if (source != null && source.equals(target)) return newType;
     else {
       if (source is ArrowType) {
         List<IType> left = source.leftSide.map((p) => substitute(p, target, newType)).toList();
@@ -414,14 +420,7 @@ class ConstraintSolver {
   }
 
   void checkConstraintsOnConstraintSet() {
-    if (this.cs.constraints.where((c) => c.isInvalidMethodInvocation()).isEmpty) {
-      this.cs.constraints.forEach((c) {
-        IType left = c.left;
-        IType right = c.right;
-        if (left is SchrodingerType) c.left = substitute(c.left, c.left, left.nonTop);
-        if (right is SchrodingerType) c.right = substitute(c.right, c.right, right.nonTop);
-      });
-    }
+
     this.cs.constraints.forEach((c) {
       if (c.isInvalidMethodInvocation()) {
         IType invalidatingType = store.expressions[c.invalidatingExpression];
@@ -484,28 +483,51 @@ class ConstraintSolver {
 
   void reduceConstraints(TVar tvar, Set<Constraint> set) {
     if (set.isEmpty) return;
-    Set<Constraint> subtypingSet = set.where((c) => c.left == tvar).toSet();
-    Set<Constraint> supertypingSet = set.where((c) => c.right == tvar).toSet();
+    if (tvar.index == -1) return;
+    Set<Constraint> subtypingSet = set.where((c) {
+      IType left = c.left;
+      return c.left == tvar || (left is SchrodingerType && left.nonTop == tvar);
+    }).toSet();
+    Set<Constraint> supertypingSet = set.where((c) {
+      IType right = c.right;
+      return c.right == tvar || (right is SchrodingerType && right.nonTop == tvar);
+    }).toSet();
     Constraint subtypingConstraint, supertypingConstraint;
 
-    if (subtypingSet.isNotEmpty) subtypingConstraint = new SubtypingConstraint(
-        tvar,
-        new MeetType(subtypingSet.map((c) {
-          return c.right;
-        }).toList()),
-        subtypingSet.map((c2) => c2.location).expand((i) => i).toList(),
-        isFromMethodInvocation: subtypingSet.map((c1) => c1.isFromMethodInvocation).reduce((b1, b2) => b1 || b2),
-        invalidatingExpression: subtypingSet.where((c1) => c1.invalidatingExpression != null).isNotEmpty ? subtypingSet.where((c2) => c2.invalidatingExpression != null).first.invalidatingExpression : null);
-
-    if (supertypingSet.isNotEmpty) supertypingConstraint = new SubtypingConstraint(
-        new JoinType(supertypingSet.map((c) {
-          return c.left;
-        }).toList()),
-        tvar,
-        supertypingSet.map((c2) => c2.location).expand((i) => i).toList(),
-        isFromMethodInvocation: supertypingSet.map((c1) => c1.isFromMethodInvocation).reduce((b1, b2) => b1 || b2),
-        invalidatingExpression: supertypingSet.where((c1) => c1.invalidatingExpression != null).isNotEmpty ? supertypingSet.where((c2) => c2.invalidatingExpression != null).first.invalidatingExpression : null);
-
+    if (subtypingSet.isNotEmpty) {
+      IType t = subtypingSet.first.left is SchrodingerType ? subtypingSet.first.left : tvar;
+      subtypingConstraint = new SubtypingConstraint(
+          t,
+          new MeetType(subtypingSet.map((c) {
+            return c.right;
+          }).toList()),
+          subtypingSet.map((c2) => c2.location).expand((i) => i).toList(),
+          isFromMethodInvocation: subtypingSet.map((c1) =>
+          c1.isFromMethodInvocation).reduce((b1, b2) => b1 || b2),
+          invalidatingExpression: subtypingSet
+              .where((c1) => c1.invalidatingExpression != null)
+              .isNotEmpty ? subtypingSet
+              .where((c2) => c2.invalidatingExpression != null)
+              .first
+              .invalidatingExpression : null);
+    }
+    if (supertypingSet.isNotEmpty) {
+      IType t = supertypingSet.first.right is SchrodingerType ? supertypingSet.first.right : tvar;
+      supertypingConstraint = new SubtypingConstraint(
+          new JoinType(supertypingSet.map((c) {
+            return c.left;
+          }).toList()),
+          t,
+          supertypingSet.map((c2) => c2.location).expand((i) => i).toList(),
+          isFromMethodInvocation: supertypingSet.map((c1) =>
+          c1.isFromMethodInvocation).reduce((b1, b2) => b1 || b2),
+          invalidatingExpression: supertypingSet
+              .where((c1) => c1.invalidatingExpression != null)
+              .isNotEmpty ? supertypingSet
+              .where((c2) => c2.invalidatingExpression != null)
+              .first
+              .invalidatingExpression : null);
+    }
     set.retainAll([]);
 
     if (subtypingConstraint != null) {

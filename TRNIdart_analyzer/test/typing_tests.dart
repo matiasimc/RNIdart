@@ -76,6 +76,10 @@ void main() {
         '''
         import "package:TRNIdart/TRNIdart.dart";
         
+        abstract class StringToString {
+            @S("Bot") String toString();
+        }
+        
         class C1 {
           C2 m(C2 c) {
             c.m4();
@@ -101,9 +105,6 @@ void main() {
           }
         }
         
-        abstract class StringToString {
-            @S("Bot") String toString();
-          }
         
         ''';
     var source = mft.newSource("/test.dart", program);

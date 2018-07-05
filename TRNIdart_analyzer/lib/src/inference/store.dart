@@ -26,18 +26,18 @@ class Store {
     this.varIndex = 0;
   }
 
-  void addElement(Element v, IType defaultType, {IType declaredType, IType dartCoreType}) {
+  void addElement(Element v, {IType declaredType}) {
     if (!this.elements.containsKey(v)) elements[v] = this.storeIndex++;
     if (declaredType != null) {
       types[elements[v]] = declaredType;
     }
     else {
-      types[elements[v]] = new TVar(varIndex++, defaultType, dartCoreType: dartCoreType);
+      types[elements[v]] = new TVar(varIndex++);
     }
   }
 
-  TVar getTypeVariable(IType defaultType, {IType dartCoreType}) {
-    return new TVar(varIndex++, defaultType, dartCoreType: dartCoreType);
+  TVar getTypeVariable() {
+    return new TVar(varIndex++);
   }
 
   bool hasElement(Element e) {
@@ -48,9 +48,13 @@ class Store {
     return types[elements[e]];
   }
 
-  IType getTypeOrVariable(Element e, {IType defaultType, IType dartCoreType}) {
-    if (e == null) return this.getTypeVariable(defaultType, dartCoreType: dartCoreType);
-    if (!this.hasElement(e)) this.addElement(e, defaultType, dartCoreType: dartCoreType);
+  SchrodingerType getSchrodingerType(IType nonTop) {
+    return new SchrodingerType(nonTop, varIndex++);
+  }
+
+  IType getTypeOrVariable(Element e) {
+    if (e == null) return this.getTypeVariable();
+    if (!this.hasElement(e)) this.addElement(e);
     return getType(e);
   }
 
