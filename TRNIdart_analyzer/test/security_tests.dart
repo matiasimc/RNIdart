@@ -8,7 +8,7 @@ void main() {
     mft = new MemoryFileTest();
     mft.setUp();
   });
-  test("Default facet for core dart method should be Bot -> Bot", () {
+  test("Default facet for core dart method should be ${CORE_PARAMETER_FACET} -> ${CORE_RETURN_FACET}", () {
     var program =
     '''
     import "package:TRNIdart/TRNIdart.dart";
@@ -25,14 +25,14 @@ void main() {
     var result2 = mft.checkTypeForSourceWithQuery(source, "String guess");
     var result3 = mft.checkTypeForSourceWithQuery(source, "login(String password, String guess) → int");
     var members = new Map();
-    members["compareTo"] = new ArrowType([new Bot()], new Bot());
+    members["compareTo"] = new ArrowType([CORE_PARAMETER_FACET], CORE_RETURN_FACET);
     var expected = new ObjectType(members);
     expect(result1, equals(expected));
-    expect(result2, equals(new Bot()));
-    expect(result3, equals(new Bot()));
+    expect(result2, equals(CORE_PARAMETER_FACET));
+    expect(result3, equals(CORE_RETURN_FACET));
   });
 
-  test("Declared facet for core dart method should be Bot -> Bot", () {
+  test("Declared facet for core dart method should be ${CORE_PARAMETER_FACET} -> ${CORE_RETURN_FACET}", () {
     var program =
     '''
     import "package:TRNIdart/TRNIdart.dart";
@@ -50,7 +50,7 @@ void main() {
 
     var source = mft.newSource("/test.dart", program);
     var result = mft.checkTypeForSourceWithQuery(source, "login(String guess, String password) → int");
-    expect(result, equals(new Bot()));
+    expect(result, equals(CORE_RETURN_FACET));
   });
 
   test("Return of a method invocation that does not belong to the facet should be Top", () {
