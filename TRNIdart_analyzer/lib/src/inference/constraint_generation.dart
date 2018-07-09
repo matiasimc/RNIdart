@@ -401,7 +401,7 @@ class BlockVisitor extends RecursiveAstVisitor {
       The target node of prefixedIdentifier is always a variable.
      */
 
-      if (propertyAccessor.variable.library != null && propertyAccessor.variable.library.isDartCore && !(node.parent is MethodInvocation || node.parent is PrefixedIdentifier || node.parent is PropertyAccess)) {
+      if (propertyAccessor.variable.library != null && propertyAccessor.variable.library.isInSdk && !(node.parent is MethodInvocation || node.parent is PrefixedIdentifier || node.parent is PropertyAccess)) {
         this.store.addElement(propertyAccessor.variable, declaredType: CORE_RETURN_FACET);
       }
       IType variableReturn = this.store.getTypeVariable();
@@ -440,7 +440,7 @@ class BlockVisitor extends RecursiveAstVisitor {
     if (propertyAccessor is PropertyAccessorElement) {
       ErrorLocation location = new ErrorLocation(this.source,node.length, node.offset, node);
 
-      if (propertyAccessor.variable.library != null && propertyAccessor.variable.library.isDartCore && !(node.parent is MethodInvocation || node.parent is PrefixedIdentifier || node.parent is PropertyAccess)) {
+      if (propertyAccessor.variable.library != null && propertyAccessor.variable.library.isInSdk && !(node.parent is MethodInvocation || node.parent is PrefixedIdentifier || node.parent is PropertyAccess)) {
         this.store.addElement(propertyAccessor.variable, declaredType: CORE_RETURN_FACET);
       }
       IType fieldReturn = this.store.getTypeOrVariable(propertyAccessor.variable);
@@ -475,14 +475,14 @@ class BlockVisitor extends RecursiveAstVisitor {
     IType methodReturn;
     IType variableReturn;
     List<IType> variableParameters;
-    if (node.staticInvokeType.element.library != null && node.staticInvokeType.element.library.isDartCore && !(node.parent is MethodInvocation || node.parent is PrefixedIdentifier|| node.parent is PropertyAccess)) {
+    if (node.staticInvokeType.element.library != null && node.staticInvokeType.element.library.isInSdk && !(node.parent is MethodInvocation || node.parent is PrefixedIdentifier|| node.parent is PropertyAccess)) {
       this.store.addElement(node.staticInvokeType.element, declaredType: CORE_RETURN_FACET);
     }
     methodReturn = this.store.getTypeOrVariable(node.staticInvokeType.element);
     variableReturn = this.store.getTypeVariable();
     variableParameters = node.argumentList.arguments.map((a) {
       IType parType;
-      if (node.staticInvokeType.element.library != null && node.staticInvokeType.element.library.isDartCore) {
+      if (node.staticInvokeType.element.library != null && node.staticInvokeType.element.library.isInSdk) {
         this.store.addElement(a.bestParameterElement, declaredType: CORE_PARAMETER_FACET);
       }
       parType = this.store.getTypeOrVariable(a.bestParameterElement);
@@ -525,14 +525,14 @@ class BlockVisitor extends RecursiveAstVisitor {
      */
     if (node.staticElement != null) {
       IType methodReturn;
-      if (node.staticElement.library != null && node.staticElement.library.isDartCore) {
+      if (node.staticElement.library != null && node.staticElement.library.isInSdk) {
         this.store.addElement(node.staticElement, declaredType: CORE_RETURN_FACET);
       }
       methodReturn = this.store.getTypeOrVariable(node.staticElement);
 
       node.argumentList.arguments.forEach((a) {
         IType parType;
-        if (node.staticElement.library != null && node.staticElement.library.isDartCore) {
+        if (node.staticElement.library != null && node.staticElement.library.isInSdk) {
           this.store.addElement(a.bestParameterElement, declaredType: CORE_PARAMETER_FACET);        }
         else {
           parType = this.store.getTypeOrVariable(a.bestParameterElement);
