@@ -75,13 +75,23 @@ class S {
         ''';
   }
 
-  IType checkTypeForSourceWithQuery(Source original, String query) {
-    var resolvedUnit = context.resolveCompilationUnit(original, context.computeLibraryElement(original));
+  IType checkTypeForSourceWithQuery(Source source, String query) {
+    var resolvedUnit = context.resolveCompilationUnit(source, context.computeLibraryElement(source));
     TRNIAnalyzer.computeConstraints(resolvedUnit, true);
     TRNIAnalyzer.computeTypes();
     Element element = TRNIAnalyzer.store.elements.keys.firstWhere((e) => e.toString() == query);
     if (element == null) return null;
     return TRNIAnalyzer.store.getType(element);
+  }
+
+  bool hasSecurityError(Source source, String query) {
+    var resolvedUnit = context.resolveCompilationUnit(source, context.computeLibraryElement(source));
+    TRNIAnalyzer.computeConstraints(resolvedUnit, true);
+    TRNIAnalyzer.computeTypes();
+    return TRNIAnalyzer.errorCollector.errors.any((error) {
+      if (error is SubtypingError && error.c.location.any((location) => location.node.toString() == query)) return true;
+      else return false;
+    });
   }
 
 }

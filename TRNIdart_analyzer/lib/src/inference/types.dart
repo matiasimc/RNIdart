@@ -60,8 +60,12 @@ class ObjectType extends IType {
     if (t is ObjectType) {
       if (t is Top || t is Bot) return false;
       this.members.forEach((label, type) {
-        if (!t.members.containsKey(label)) return false;
+        if (!t.members.containsKey(label)) ret = false;
         ret = ret && t.members[label].equals(this.members[label]);
+      });
+      t.members.forEach((label, type) {
+        if (!this.members.containsKey(label)) ret = false;
+        ret = ret && this.members[label].equals(t.members[label]);
       });
     }
     else ret = false;

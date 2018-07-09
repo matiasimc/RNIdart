@@ -32,7 +32,7 @@ void main() {
     expect(result3, equals(new Bot()));
   });
 
-  test("Declared facet for core dart method test should be Bot -> Bot", () {
+  test("Declared facet for core dart method should be Bot -> Bot", () {
     var program =
     '''
     import "package:TRNIdart/TRNIdart.dart";
@@ -72,6 +72,130 @@ void main() {
     var source = mft.newSource("/test.dart", program);
     var result = mft.checkTypeForSourceWithQuery(source, "login(String guess, String password) → int");
     expect(result, equals(new Top()));
+  });
+
+  test("Test of declared facet in a method of another facet", () {
+    var program =
+    '''
+    import "package:TRNIdart/TRNIdart.dart";
+    
+    abstract class IntCompareTo {
+      int compareTo(num other);
+    }
+    
+    abstract class StringHashCompareTo {
+      @S("IntCompareTo") int get hashCode;
+    }
+    
+    class LoginScreen {
+      int login(int passwordHash, @S("StringHashCompareTo") String password) {
+        return password.hashCode.compareTo(passwordHash);
+      }
+    }
+    ''';
+
+    var source = mft.newSource("/test.dart", program);
+    var result = mft.checkTypeForSourceWithQuery(source, "login(int passwordHash, String password) → int");
+    expect(result, equals(new Bot()));
+  });
+
+  test("Test of declared facet in a method of another facet that evaluates to Top", () {
+    var program =
+    '''
+    import "package:TRNIdart/TRNIdart.dart";
+    
+    abstract class IntCompareTo {
+      int compareTo(num other);
+    }
+    
+    abstract class StringHashCompareTo {
+      @S("IntCompareTo") int get hashCode;
+    }
+    
+    class LoginScreen {
+      int login(int passwordHash, @S("StringHashCompareTo") String password) {
+        return password.hashCode.toString();
+      }
+    }
+    ''';
+
+    var source = mft.newSource("/test.dart", program);
+    var result = mft.checkTypeForSourceWithQuery(source, "login(int passwordHash, String password) → int");
+    expect(result, equals(new Top()));
+  });
+
+  test("Using a method invocation that returns Top as an argument when the method declared Bot in the parameter should be an error", () {
+    var program =
+    '''
+    import "package:TRNIdart/TRNIdart.dart";
+    
+    class LoginScreen {
+      void login(@S("Top") String password) {
+        check(password.toLowerCase());
+      }
+      
+      String check(@S("Bot") String password) {
+        return password.substring(0);
+      }
+    }
+    
+    ''';
+
+    var source = mft.newSource("/test.dart", program);
+    var result = mft.hasSecurityError(source, "check(password.toLowerCase())");
+    expect(result, isTrue);
+  });
+
+  test("The assignment should be affected by the conditional because of the PC", () {
+    var program =
+    '''
+    import "package:TRNIdart/TRNIdart.dart";
+    
+    class Person {
+      bool get permission => true;
+    }
+    
+    class Foo {
+      String foo(@S("Top") Person p){
+        String ret = "denegado";
+        if (p.permission) {
+          ret = "exito";
+        }
+        return ret;
+      }
+    }
+    
+    ''';
+
+    var source = mft.newSource("/test.dart", program);
+    var result = mft.checkTypeForSourceWithQuery(source, "foo(Person p) → String");
+    expect(result, equals(new Top()));
+  });
+
+  test("The assignment should throw an error if declared a facet that is subtype of the PC", () {
+    var program =
+    '''
+    import "package:TRNIdart/TRNIdart.dart";
+    
+    class Person {
+      bool get permission => true;
+    }
+    
+    class Foo {
+      String foo(@S("Top") Person p){
+        @S("Bot") String ret = "denegado";
+        while (p.permission) {
+          ret = "exito";
+        }
+        return ret;
+      }
+    }
+    
+    ''';
+
+    var source = mft.newSource("/test.dart", program);
+    var result = mft.hasSecurityError(source, "ret = \"exito\"");
+    expect(result, isTrue);
   });
 
 }

@@ -117,7 +117,7 @@ void main() {
     expect(result, equals(new ObjectType(members)));
   });
 
-  test("Test of parameters join and return", () {
+  test("Test of parameter type when used as an argument in multiple method calls", () {
     var program =
         '''
         class C1 {

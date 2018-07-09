@@ -30,7 +30,8 @@ class SecondDeclaredVisitor extends SimpleAstVisitor {
       IType signature;
       if (m is MethodDeclaration) {
         label = m.name.toString();
-        List<IType> left = m.parameters.parameters.map((p) {
+        List<IType> left;
+        if (m.parameters != null) left = m.parameters.parameters.map((p) {
           if (AnnotationHelper.elementHasDeclared(p.element)) {
             Annotation a = AnnotationHelper.getDeclaredForParameter(p);
             String facet = a.arguments.arguments.first.toString().replaceAll("\"", "");
@@ -47,7 +48,7 @@ class SecondDeclaredVisitor extends SimpleAstVisitor {
           if (abstractClasses.containsKey(facet)) abstractClasses[facet].computeNode().accept(this);
           right = declaredStore.containsKey(facet) ? declaredStore[facet] : CORE_PARAMETER_FACET;
         }
-        signature = new ArrowType(left, right);
+        signature = left != null ? new ArrowType(left, right) : new FieldType(right);
       }
       if (m is FieldDeclaration) {
         if (m.fields.variables.first != null) label = m.fields.variables.first.element.name;

@@ -345,6 +345,18 @@ class BlockVisitor extends RecursiveAstVisitor {
   }
 
   @override
+  visitWhileStatement(WhileStatement node) {
+    node.condition.accept(this);
+    IType cond = store.expressions[node.condition];
+    ErrorLocation location = new ErrorLocation(source, node.condition.length, node.condition.offset, node.condition);
+    IType newPC = store.getTypeVariable();
+    this.cs.addConstraint(new SubtypingConstraint(cond, newPC, [location]));
+    this.cs.addConstraint(new SubtypingConstraint(pc, newPC, [location]));
+    BlockVisitor visitor = new BlockVisitor(store, cs, returnType, source, declaredStore, collector, newPC);
+    node.body.accept(visitor);
+  }
+
+  @override
   visitAssignmentExpression(AssignmentExpression node) {
     log.shout("Found assignment expresion ${node}");
     ErrorLocation location = new ErrorLocation(source, node.length, node.offset, node);

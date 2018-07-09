@@ -242,9 +242,11 @@ class ConstraintSolver {
       if (groupedConstraints.containsKey(t)) {
         IType selected;
         groupedConstraints[t].forEach((c) {
-          if (c.left == t) selected = c.right;
-          else selected = c.left;
+          IType left = c.left, right = c.right;
+          if (left == t || (left is SchrodingerType && left.nonTop == t)) selected = c.right;
+          else if (right == t || (right is SchrodingerType && right.nonTop == t)) selected = c.left;
         });
+        if (selected == null) selected = t;
         store.types[i] = selected;
       }
     });
@@ -288,9 +290,9 @@ class ConstraintSolver {
         if (c != pop) {
           IType left = pop.left;
           IType right = pop.right;
+          IType oldRight = c.right;
+          IType oldLeft = c.left;
           if (pop.left.isVariable()) {
-            IType oldRight = c.right;
-            IType oldLeft = c.left;
             IType newRight = substitute(c.right, pop.left, pop.right);
             IType newLeft = substitute(c.left, pop.left, pop.right);
             if (oldRight != newRight) {
@@ -307,8 +309,6 @@ class ConstraintSolver {
             }
           }
           else if (left is SchrodingerType) {
-            IType oldRight = c.right;
-            IType oldLeft = c.left;
             IType newRight = substitute(c.right, left.nonTop, pop.right);
             IType newLeft = substitute(c.left, left.nonTop, pop.right);
             if (oldRight != newRight) {
@@ -325,8 +325,6 @@ class ConstraintSolver {
             }
           }
           else if (right is SchrodingerType) {
-            IType oldRight = c.right;
-            IType oldLeft = c.left;
             IType newRight = substitute(c.right, right.nonTop, pop.left);
             IType newLeft = substitute(c.left, right.nonTop, pop.left);
             if (oldRight != newRight) {
@@ -342,8 +340,6 @@ class ConstraintSolver {
             }
           }
           else {
-            IType oldRight = c.right;
-            IType oldLeft = c.left;
             IType newRight = substitute(c.right, pop.right, pop.left);
             IType newLeft = substitute(c.left, pop.right, pop.left);
             if (oldRight != newRight) {
@@ -440,18 +436,6 @@ class ConstraintSolver {
 
   void checkConstraintsOnGroupedSet() {
     List<Constraint> allConstraint = groupedConstraints.values.map((s) => s.toList()).expand((x) => x).toList();
-
-    this.groupedConstraints.values.forEach((s) {
-      if (s.length == 1 && s.first.isFromMethodInvocation) {
-        IType invalidatingType = store.expressions[s.first.invalidatingExpression];
-        allConstraint.forEach((c) {
-          IType left = c.left, right = c.right;
-          if (left is SchrodingerType && left.equals(invalidatingType)) c.left = substitute(c.left, c.left, left.nonTop);
-          if (right is SchrodingerType && right.equals(invalidatingType)) c.right = substitute(c.right, c.right, right.nonTop);
-        });
-      }
-    });
-
     this.groupedConstraints.values.forEach((s) => s.forEach((c) {
       if (c.isInvalidMethodInvocation()) {
         IType invalidatingType = store.expressions[c.invalidatingExpression];
@@ -480,7 +464,7 @@ class ConstraintSolver {
       if (t.types.any((t1) => t1 is Bot)) {
         return new Bot();
       }
-      else if (t.types.length == 1) return t.types.first;
+      //else if (t.types.length == 1) return t.types.first;
       else if (!t.isConcrete()) return t;
       return t.types.reduce(meet);
     }
@@ -488,7 +472,7 @@ class ConstraintSolver {
       if (t.types.any((t1) => t1 is Top)) {
         return new Top();
       }
-      else if (t.types.length == 1) return t.types.first;
+      //else if (t.types.length == 1) return t.types.first;
       else if (!t.isConcrete()) return t;
       else return t.types.reduce(join);
     }
