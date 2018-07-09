@@ -11,7 +11,7 @@ dependencies:
   TRNIdart_analyzer_plugin:
     git:
       url: git://github.com/matiasimc/TRNIdart
-      path: TRNIdart_analyzer_plugin
+      path: TRNIdart_analyzer_plugin/
 #  path: ^1.4.1
 
 dev_dependencies:

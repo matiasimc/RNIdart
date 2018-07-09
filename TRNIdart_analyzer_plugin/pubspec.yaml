@@ -12,7 +12,9 @@ dependencies:
   plugin: '^0.2.0+2'
   analyzer_plugin: '0.0.1-alpha.1'
   TRNIdart_analyzer:
-    path: '../TRNIdart_analyzer'
+    git:
+        url: git://github.com/matiasimc/TRNIdart
+        path: TRNIdart_analyzer/
 #  path: ^1.4.1
 
 dev_dependencies:
