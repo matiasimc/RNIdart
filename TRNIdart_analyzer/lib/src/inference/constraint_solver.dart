@@ -428,9 +428,12 @@ class ConstraintSolver {
           });
         }
       }
-      if (!c.isValid()) {
-        c.location.forEach((l) {if (!locationsWithErrors.contains(l)) locationsWithErrors.add(l); collector.errors.add(new SubtypingError(c, l));});
-      }
+      c.location.forEach((l) {
+        if (!c.isValid(l)) {
+          if (!locationsWithErrors.contains(l)) locationsWithErrors.add(l);
+          collector.errors.add(new SubtypingError(c, l));
+        }
+      });
     });
   }
 
@@ -447,9 +450,13 @@ class ConstraintSolver {
           }));
         }
       }
-      if (!c.isValid()) {
-        c.location.forEach((l) { if (!locationsWithErrors.contains(l)) locationsWithErrors.add(l); collector.errors.add(new SubtypingError(c, l));}
-        );}
+      c.location.forEach((l) {
+        log.shout("constraint: ${c}, location: ${l.node}");
+        if (!c.isValid(l)) {
+          if (!locationsWithErrors.contains(l)) locationsWithErrors.add(l);
+          collector.errors.add(new SubtypingError(c, l));
+        }
+      });
     }));
   }
 
