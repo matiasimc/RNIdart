@@ -3,10 +3,14 @@ abstract class  IType {
   bool equals(IType t);
   bool isVariable() => false;
   bool subtypeOf(IType t);
+  String cleanPrint();
 }
 
 class TVar extends IType {
   int index;
+
+  @override
+  String cleanPrint() => this.toString();
 
   @override
   bool isConcrete() => false;
@@ -36,6 +40,9 @@ class ObjectType extends IType {
   A map between a label and a type (usually arrow type)
    */
   Map<String, IType> members;
+
+  @override
+  String cleanPrint() => this.toString();
 
   ObjectType([this.members]) {
     if (this.members == null) this.members = new Map<String, IType>();
@@ -104,6 +111,9 @@ class ArrowType extends IType {
   ArrowType(this.leftSide, this.rightSide);
 
   @override
+  String cleanPrint() => this.toString();
+
+  @override
   bool isConcrete() {
     if (!this.rightSide.isConcrete()) return false;
     for (IType t in leftSide) {
@@ -135,7 +145,6 @@ class ArrowType extends IType {
       }
       if (!this.rightSide.subtypeOf(t.rightSide)) return false;
     }
-    else return false;
     return true;
   }
 }
@@ -144,6 +153,9 @@ class FieldType extends IType {
   IType rightSide;
 
   FieldType(this.rightSide);
+
+  @override
+  String cleanPrint() => this.toString();
 
   @override
   String toString() => "${rightSide}";
@@ -213,6 +225,12 @@ class Bot extends ObjectType {
 class JoinType extends IType {
   List<IType> types;
 
+  @override
+  String cleanPrint() {
+    if (types.length == 1) return types.first.cleanPrint();
+    return this.toString();
+  }
+
   JoinType([List<IType> types]) {
     if (types == null) this.types = new List();
     else this.types = types;
@@ -234,7 +252,7 @@ class JoinType extends IType {
   bool isConcrete() => this.types.every((t) => t.isConcrete());
 
   @override
-  bool subtypeOf(IType t) => true;
+  bool subtypeOf(IType t) => this.types.length > 1 || this.types.first.subtypeOf(t);
 
   @override
   String toString() => "Join${this.types}";
@@ -247,6 +265,12 @@ class MeetType extends IType {
   MeetType([List<IType> types]) {
     if (types == null) this.types = new List();
     else this.types = types;
+  }
+
+  @override
+  String cleanPrint() {
+    if (types.length == 1) return types.first.cleanPrint();
+    return this.toString();
   }
 
   @override
@@ -265,7 +289,7 @@ class MeetType extends IType {
   bool isConcrete() => this.types.every((t) => t.isConcrete());
 
   @override
-  bool subtypeOf(IType t) => true;
+  bool subtypeOf(IType t) => this.types.length > 1 || this.types.first.subtypeOf(t);
 
   @override
   String toString() => "Meet${this.types}";
@@ -277,6 +301,9 @@ class SchrodingerType extends IType {
   int index;
 
   SchrodingerType(this.nonTop, this.index);
+
+  @override
+  String cleanPrint() => "${this.nonTop.cleanPrint()}";
 
   @override
   bool equals(IType t) => t is SchrodingerType && this.nonTop.equals(t.nonTop) && this.index == t.index;

@@ -13,6 +13,7 @@ abstract class Constraint {
   bool isInvalidMethodInvocation();
   bool isFromMethodInvocation;
   Expression invalidatingExpression;
+  String cleanPrint();
 }
 
 class SubtypingConstraint extends Constraint {
@@ -40,6 +41,9 @@ class SubtypingConstraint extends Constraint {
 
   @override
   bool isInvalidMethodInvocation() => (this.isFromMethodInvocation && !this.left.subtypeOf(this.right));
+
+  @override
+  String cleanPrint() => "${left.cleanPrint()} <: ${right.cleanPrint()}";
 }
 
 class ConstraintSet {

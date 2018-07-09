@@ -437,6 +437,7 @@ class ConstraintSolver {
   void checkConstraintsOnGroupedSet() {
     List<Constraint> allConstraint = groupedConstraints.values.map((s) => s.toList()).expand((x) => x).toList();
     this.groupedConstraints.values.forEach((s) => s.forEach((c) {
+      //log.shout("The constraint $c, isValid: ${c.isValid()}, location: ${c.location}, isFromMethodInvocation: ${c.isFromMethodInvocation}, subtype: ${c.left.subtypeOf(c.right)}");
       if (c.isInvalidMethodInvocation()) {
         IType invalidatingType = store.expressions[c.invalidatingExpression];
         if (invalidatingType is SchrodingerType) {

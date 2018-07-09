@@ -104,12 +104,12 @@ class SubtypingErrorCode implements ErrorCode {
 
   SubtypingErrorCode(this.constraint, this.l, [String this.correction]) {
     AstNode node = l.node;
-    this.message = "The subtyping relation ${constraint} is invalid.";
+    this.message = "The subtyping relation ${constraint.cleanPrint()} is invalid.";
     if (node is MethodInvocation) {
-      this.message = "Error in the method invocation. The subtyping relation ${constraint} is invalid.";
+      this.message = "Error in the method invocation. The subtyping relation ${constraint.cleanPrint()} is invalid.";
     }
     if (node is ReturnStatement) {
-      this.message = "The return expression facet ${constraint.left} is not a subtype of the return facet ${constraint.right}.";
+      this.message = "The return expression facet ${constraint.left.cleanPrint()} is not a subtype of the return facet ${constraint.right.cleanPrint()}.";
     }
   }
 

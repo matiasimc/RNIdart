@@ -14,4 +14,7 @@ class ErrorLocation {
 
   @override
   int get hashCode => source.hashCode+length+offset;
+
+  @override
+  String toString() => node.toString();
 }

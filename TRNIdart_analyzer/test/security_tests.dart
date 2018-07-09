@@ -172,18 +172,27 @@ void main() {
     expect(result, equals(new Top()));
   });
 
-  test("The assignment should throw an error if declared a facet that is subtype of the PC", () {
+  test("The assignment should throw an error if declared a facet that is not supertype of the PC", () {
     var program =
     '''
     import "package:TRNIdart/TRNIdart.dart";
     
+    abstract class StringToString {
+      String toString();
+    }
+    
+    abstract class StringToStringAndToLowerCase {
+      String toString();
+      String toLowerCase();
+    }
+    
     class Person {
-      bool get permission => true;
+      @S("StringToString") bool get permission => true;
     }
     
     class Foo {
-      String foo(@S("Top") Person p){
-        @S("Bot") String ret = "denegado";
+      String foo(Person p){
+        @S("StringToStringAndToLowerCase") String ret = "denegado";
         while (p.permission) {
           ret = "exito";
         }
