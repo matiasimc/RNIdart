@@ -9,7 +9,7 @@ abstract class Constraint {
   List<ErrorLocation> location;
   bool isResolved();
   bool isEmpty();
-  bool isValid(ErrorLocation location);
+  bool isValid();
   bool isInvalidMethodInvocation();
   bool isFromMethodInvocation;
   Expression invalidatingExpression;
@@ -37,9 +37,7 @@ class SubtypingConstraint extends Constraint {
     (o is SubtypingConstraint && this.left.equals(o.left) && this.right.equals(o.right));
 
   @override
-  bool isValid(ErrorLocation location) {
-    return location.node is MethodInvocation || location.node is PrefixedIdentifier || location.node is PropertyAccess || this.left.subtypeOf(this.right);
-  }
+  bool isValid() => this.isFromMethodInvocation || this.left.subtypeOf(this.right);
 
   @override
   bool isInvalidMethodInvocation() => (this.isFromMethodInvocation && !this.left.subtypeOf(this.right));
