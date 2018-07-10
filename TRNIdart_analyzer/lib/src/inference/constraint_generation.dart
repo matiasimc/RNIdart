@@ -66,6 +66,7 @@ class ClassMemberVisitor extends SimpleAstVisitor {
     Annotation a = AnnotationHelper.getDeclared(node);
     IType right;
     if (a != null) {
+      log.shout("Annotation $a, offset ${a.offset}, length ${a.length}");
       String facet = a.arguments.arguments.first.toString().replaceAll("\"", "");
       if (this.declaredStore.containsKey(facet)) {
         IType old = this.store.getType(node.element);
@@ -85,7 +86,7 @@ class ClassMemberVisitor extends SimpleAstVisitor {
         when typing the facet, due to this case: @declString foo...
          */
         try {
-          collector.errors.add(new UndefinedFacetError(node.element, facet));
+          collector.errors.add(new UndefinedFacetError(a, facet, source));
           right = this.store.getTypeVariable();
           this.declaredStore[facet] = right;
         }
@@ -122,7 +123,7 @@ class ClassMemberVisitor extends SimpleAstVisitor {
         }
         else {
           try {
-            collector.errors.add(new UndefinedFacetError(p, facet));
+            collector.errors.add(new UndefinedFacetError(a, facet, source));
             IType tvar1 = this.store.getTypeVariable();
             this.declaredStore[facet] = tvar1;
             return tvar1;
@@ -157,7 +158,7 @@ class ClassMemberVisitor extends SimpleAstVisitor {
         }
         else {
           try {
-            collector.errors.add(new UndefinedFacetError(p, facet));
+            collector.errors.add(new UndefinedFacetError(a, facet, source));
             IType tvar1 = this.store.getTypeVariable();
             this.declaredStore[facet] = tvar1;
             return tvar1;
@@ -249,6 +250,7 @@ class BlockVisitor extends RecursiveAstVisitor {
     Annotation a = AnnotationHelper.getDeclared(node);
     IType right;
     if (a != null) {
+      log.shout("Annotation $a, offset ${a.offset}, length ${a.length}");
       String facet = a.arguments.arguments.first.toString().replaceAll("\"", "");
       if (this.declaredStore.containsKey(facet)) {
         for (VariableDeclaration v in node.variables) {
@@ -271,7 +273,7 @@ class BlockVisitor extends RecursiveAstVisitor {
          */
         try {
           for (VariableDeclaration v in node.variables) {
-            collector.errors.add(new UndefinedFacetError(v.element, facet));
+            collector.errors.add(new UndefinedFacetError(a, facet, source));
           }
           right = this.store.getTypeVariable();
           this.declaredStore[facet] = right;

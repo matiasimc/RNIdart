@@ -26,14 +26,11 @@ class UnableToResolveError extends AnalysisError {
 }
 
 class UndefinedFacetError extends AnalysisError {
-  Element e;
+  AstNode e;
   String facetName;
+  Source source;
 
-  int customOffset;
-  int customLength;
-  Source customSource;
-
-  UndefinedFacetError(this.e, this.facetName) : super(e.source, e.computeNode().offset, 2+4+facetName.length, new UndefinedFacetErrorCode(facetName, "Please create the abstract class."));
+  UndefinedFacetError(this.e, this.facetName, this.source) : super(source, e.offset, e.length, new UndefinedFacetErrorCode(facetName, "Please create the abstract class."));
 
 }
 
