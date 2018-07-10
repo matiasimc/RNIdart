@@ -207,4 +207,31 @@ void main() {
     expect(result, isTrue);
   });
 
+  test("The constructor should be faceted, and the instances created should have the facet of the constructor", () {
+    var program =
+    '''
+    import "package:TRNIdart/TRNIdart.dart";
+    
+    abstract class StringToString {
+      String toString();
+    }
+    
+    class Bar {
+      @S("StringToString") Bar();
+      
+      Bar bar() {
+        Bar b = new Bar();
+        return b;
+      }
+    }
+    
+    ''';
+
+    var source = mft.newSource("/test.dart", program);
+    var result = mft.checkTypeForSourceWithQuery(source, "bar() → Bar");
+    var members = new Map();
+    members["toString"] = new ArrowType([], CORE_RETURN_FACET);
+    expect(result, equals(new ObjectType(members)));
+  });
+
 }

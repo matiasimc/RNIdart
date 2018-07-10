@@ -241,11 +241,12 @@ class ConstraintSolver {
     store.types.forEach((i, t) {
       if (groupedConstraints.containsKey(t)) {
         IType selected;
-        groupedConstraints[t].forEach((c) {
+        for (Constraint c in groupedConstraints[t]) {
           IType left = c.left, right = c.right;
           if (left == t || (left is SchrodingerType && left.nonTop == t)) selected = c.right;
           else if (right == t || (right is SchrodingerType && right.nonTop == t)) selected = c.left;
-        });
+          if (selected != null) break;
+        }
         if (selected == null) selected = t;
         store.types[i] = selected;
       }
@@ -292,65 +293,32 @@ class ConstraintSolver {
           IType right = pop.right;
           IType oldRight = c.right;
           IType oldLeft = c.left;
+          IType newRight = oldRight, newLeft = oldLeft;
           if (pop.left.isVariable()) {
-            IType newRight = substitute(c.right, pop.left, pop.right);
-            IType newLeft = substitute(c.left, pop.left, pop.right);
-            if (oldRight != newRight) {
-              c.location.insertAll(0,pop.location);
-              c.isFromMethodInvocation = c.isFromMethodInvocation || pop.isFromMethodInvocation;
-            }
-            c.right = newRight;
-            if (replaceLeft) {
-              if (oldLeft != newLeft) {
-                c.location.addAll(pop.location);
-                c.isFromMethodInvocation = c.isFromMethodInvocation || pop.isFromMethodInvocation;
-              }
-              c.left = newLeft;
-            }
+            newRight = substitute(c.right, pop.left, pop.right);
+            newLeft = substitute(c.left, pop.left, pop.right);
           }
           else if (left is SchrodingerType) {
-            IType newRight = substitute(c.right, left.nonTop, pop.right);
-            IType newLeft = substitute(c.left, left.nonTop, pop.right);
-            if (oldRight != newRight) {
-              c.location.insertAll(0,pop.location);
-              c.isFromMethodInvocation = c.isFromMethodInvocation || pop.isFromMethodInvocation;
-            }
-            c.right = newRight;
-            if (replaceLeft) {
-              if (oldLeft != newLeft) {
-                c.location.addAll(pop.location);
-                c.isFromMethodInvocation = c.isFromMethodInvocation || pop.isFromMethodInvocation;
-              }
-              c.left = newLeft;
-            }
+            newRight = substitute(c.right, left.nonTop, pop.right);
+            newLeft = substitute(c.left, left.nonTop, pop.right);
           }
           else if (right is SchrodingerType) {
-            IType newRight = substitute(c.right, right.nonTop, pop.left);
-            IType newLeft = substitute(c.left, right.nonTop, pop.left);
-            if (oldRight != newRight) {
-              c.location.insertAll(0,pop.location);
-            }
-            c.right = newRight;
-            if (replaceLeft) {
-              if (oldLeft != newLeft) {
-                c.isFromMethodInvocation = c.isFromMethodInvocation || pop.isFromMethodInvocation;
-                c.location.addAll(pop.location);
-              }
-              c.left = newLeft;
-            }
+            newRight = substitute(c.right, right.nonTop, pop.left);
+            newLeft = substitute(c.left, right.nonTop, pop.left);
           }
           else {
-            IType newRight = substitute(c.right, pop.right, pop.left);
-            IType newLeft = substitute(c.left, pop.right, pop.left);
-            if (oldRight != newRight) {
-              c.location.insertAll(0,pop.location);
-            }
+            newRight = substitute(c.right, pop.right, pop.left);
+            newLeft = substitute(c.left, pop.right, pop.left);
+          }
+          if (oldRight != newRight) {
+            c.location.insertAll(0,pop.location);
+            c.isFromMethodInvocation = c.isFromMethodInvocation || pop.isFromMethodInvocation;
             c.right = newRight;
-            if (replaceLeft) {
-              if (oldLeft != newLeft) {
-                c.isFromMethodInvocation = c.isFromMethodInvocation || pop.isFromMethodInvocation;
-                c.location.addAll(pop.location);
-              }
+          }
+          if (replaceLeft) {
+            if (oldLeft != newLeft) {
+              c.location.addAll(pop.location);
+              c.isFromMethodInvocation = c.isFromMethodInvocation || pop.isFromMethodInvocation;
               c.left = newLeft;
             }
           }

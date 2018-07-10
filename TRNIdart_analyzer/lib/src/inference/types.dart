@@ -96,6 +96,7 @@ class ObjectType extends IType {
       }
       return true;
     }
+    if (t is MeetType) return true;
     else return false;
   }
 
