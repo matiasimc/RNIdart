@@ -29,3 +29,5 @@ Finally, add the following import statement to your sources:
 ```
 import 'package:TRNIdart/TRNIdart.dart';
 ```
+
+Note: tested in Dart version 2.0.0-dev.60.0
