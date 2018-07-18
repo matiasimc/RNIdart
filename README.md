@@ -21,7 +21,7 @@ analyzer:
       - TRNIdart
 ```
 
-Then, restart the analysis server. It should take 10 to 20 seconds to load the plugin. Make sure to refresh the project 
+Then, do a `pub get` and restart the analysis server. It should take 10 to 20 seconds to load the plugin. Make sure to refresh the project 
 structure after the plugin is loaded, because a file `sec.dart` should be created in the project root.
 
 Finally, add the following import statement to your sources:
@@ -29,3 +29,7 @@ Finally, add the following import statement to your sources:
 ```
 import 'package:TRNIdart/TRNIdart.dart';
 ```
+
+Currently, the analysis is not performed in global functions.
+
+Note: tested in Dart version 2.0.0-dev.60.0
