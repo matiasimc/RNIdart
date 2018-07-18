@@ -17,20 +17,20 @@ class TRNIFixContributor implements FixContributor {
   void computeFixes(TRNIFixesRequest request, FixCollector collector) {
     for (AnalysisError error in request.errorsToFix) {
       if (error is UndefinedFacetError) {
-        IType t = TRNIAnalyzer.store.getType(error.e);
-        if (t is ObjectType) {
-          SourceChange change = new SourceChange("Create empty facet.");
-          SourceFileEdit se = new SourceFileEdit(this.secFile, error.source.contents.modificationTime);
-          String facet =
-          '''
-abstract class ${error.facetName} {
-  
-}
-        ''';
-          se.add(new SourceEdit(0, 0, facet));
-          change.addFileEdit(se);
-          collector.addFix(error, new PrioritizedSourceChange(100, change));
-        }
+//        IType t = TRNIAnalyzer.store.getType(error.e);
+//        if (t is ObjectType) {
+//          SourceChange change = new SourceChange("Create empty facet.");
+//          SourceFileEdit se = new SourceFileEdit(this.secFile, error.source.contents.modificationTime);
+//          String facet =
+//          '''
+//abstract class ${error.facetName} {
+//
+//}
+//        ''';
+//          se.add(new SourceEdit(0, 0, facet));
+//          change.addFileEdit(se);
+//          collector.addFix(error, new PrioritizedSourceChange(100, change));
+//        }
       }
     }
   }

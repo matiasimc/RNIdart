@@ -556,6 +556,7 @@ class BlockVisitor extends RecursiveAstVisitor {
     ErrorLocation location = new ErrorLocation(this.source, node.length, node.offset, node);
     node.expression.accept(this);
     this.cs.addConstraint(new SubtypingConstraint(store.expressions[node.expression], this.returnType, [location]));
+    this.cs.addConstraint(new SubtypingConstraint(pc, this.returnType, [location]));
     return super.visitReturnStatement(node);
   }
 
