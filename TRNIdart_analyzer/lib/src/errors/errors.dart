@@ -59,11 +59,11 @@ class UnableToResolveErrorCode implements ErrorCode {
   final String correction;
 
   UnableToResolveErrorCode([this.correction]) {
-    this.message = "The inference could not resolve the type for this element.";
+    this.message = "Any declassification facet make the program well typed.";
   }
 
   @override
-  ErrorSeverity get errorSeverity => ErrorSeverity.ERROR;
+  ErrorSeverity get errorSeverity => ErrorSeverity.INFO;
 
   @override
   ErrorType get type => ErrorType.COMPILE_TIME_ERROR;
@@ -79,7 +79,7 @@ class InferredFacetErrorCode implements ErrorCode {
   ObjectType facetType;
 
   InferredFacetErrorCode(this.facetType, [String this.correction]) {
-    this.message = "The inferred facet is: ${facetType}";
+    this.message = "The inferred declassification facet is: ${facetType}";
   }
 
   @override
@@ -101,12 +101,15 @@ class SubtypingErrorCode implements ErrorCode {
 
   SubtypingErrorCode(this.constraint, this.l, [String this.correction]) {
     AstNode node = l.node;
-    this.message = "The subtyping relation ${constraint.cleanPrint()} is invalid.";
+    this.message = "Information flow error.";
     if (node is MethodInvocation) {
-      this.message = "Error in the method invocation. The subtyping relation ${constraint.cleanPrint()} is invalid.";
+      this.message = "Information flow error between arguments and parameters.";
     }
     if (node is ReturnStatement) {
-      this.message = "The return expression facet ${constraint.left.cleanPrint()} is not a subtype of the return facet ${constraint.right.cleanPrint()}.";
+      this.message = "Information flow error in the return statement.";
+    }
+    if (node is AssignmentExpression) {
+      this.message = "Information flow error in the assignment.";
     }
   }
 
