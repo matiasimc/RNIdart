@@ -552,6 +552,53 @@ class BlockVisitor extends RecursiveAstVisitor {
   }
 
   @override
+  visitIndexExpression(IndexExpression node) {
+    ErrorLocation location = new ErrorLocation(this.source, node.length, node.offset, node);
+    if (store.expressions.containsKey(node)) return super.visitIndexExpression(node);
+    log.shout("Found index operation ${node}");
+    /*
+    Now we check the method signature, generating the constraint between
+    arguments and parameters.
+     */
+    IType methodReturn;
+    IType variableReturn;
+    if (node.bestElement.library != null && node.bestElement.library.isInSdk && !(node.parent is MethodInvocation || node.parent is PrefixedIdentifier|| node.parent is PropertyAccess)) {
+      this.store.addElement(node.bestElement, declaredType: CORE_RETURN_FACET);
+    }
+    methodReturn = this.store.getTypeOrVariable(node.bestElement);
+    variableReturn = this.store.getTypeVariable();
+    IType parType;
+    if (node.bestElement.library != null && node.bestElement.library.isInSdk) {
+      this.store.addElement(node.bestElement.parameters.first, declaredType: CORE_PARAMETER_FACET);
+    }
+    parType = this.store.getTypeOrVariable(node.bestElement.parameters.first);
+    node.index.accept(this);
+    IType argType = store.expressions[node.index];
+    this.cs.addConstraint(new SubtypingConstraint(argType, parType, [location]));
+
+    this.cs.addConstraint(new SubtypingConstraint(variableReturn, methodReturn, [location]));
+
+    ArrowType methodSignature = new ArrowType([parType], variableReturn);
+
+    /*
+    Now we generate the object type and the constraint for the target, and
+    check if the target is part of a chained method call. If it is, we add the
+    corresponding constraint.
+     */
+    IType callType = new ObjectType(
+        {node.bestElement.name: methodSignature});
+
+    store.expressions[node] = this.store.getSchrodingerType(variableReturn);
+    if (node.target != null) {
+      node.target.accept(this);
+      IType targetType = store.expressions[node.target];
+
+      // TVar(i) <: {m: x -> y}
+      this.cs.addConstraint(new SubtypingConstraint(targetType, callType, [location], isFromMethodInvocation: true, invalidatingExpression: node));
+    }
+  }
+
+  @override
   visitReturnStatement(ReturnStatement node) {
     ErrorLocation location = new ErrorLocation(this.source, node.length, node.offset, node);
     node.expression.accept(this);
