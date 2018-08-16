@@ -257,8 +257,8 @@ class ConstraintSolver {
     });
 
     store.elements.forEach((e,i) {
-      if (store.getType(e) != null && !store.getType(e).isConcrete())
-        collector.errors.add(new UnableToResolveError(e));
+      if (store.getType(e) != null && !store.getType(e).isConcrete()) ;
+        //collector.errors.add(new UnableToResolveError(e));
       else {
         if (!AnnotationHelper.elementHasDeclared(e))
           try {

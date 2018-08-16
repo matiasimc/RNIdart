@@ -103,13 +103,13 @@ class SubtypingErrorCode implements ErrorCode {
     AstNode node = l.node;
     this.message = "Information flow error.";
     if (node is MethodInvocation) {
-      this.message = "Information flow error between arguments and parameters.";
+      this.message = "Information flow error in argument. Expected a subtype of ${constraint.right.cleanPrint()}. Found ${constraint.left.cleanPrint()}.";
     }
     if (node is ReturnStatement) {
-      this.message = "Information flow error in the return statement.";
+      this.message = "Information flow error in the return statement. Expected a subtype of ${constraint.right.cleanPrint()}. Found ${constraint.left.cleanPrint()}.";
     }
     if (node is AssignmentExpression) {
-      this.message = "Information flow error in the assignment.";
+      this.message = "Information flow error in the assignment. Expected a subtype of ${constraint.right.cleanPrint()}. Found ${constraint.left.cleanPrint()}.";
     }
   }
 

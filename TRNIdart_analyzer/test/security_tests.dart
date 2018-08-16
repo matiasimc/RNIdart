@@ -113,7 +113,7 @@ void main() {
     }
     
     class LoginScreen {
-      int login(int passwordHash, @S("StringHashCompareTo") String password) {
+      String login(int passwordHash, @S("StringHashCompareTo") String password) {
         return password.hashCode.toString();
       }
     }

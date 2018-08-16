@@ -60,7 +60,7 @@ class ObjectType extends IType {
     this.members[label] = type;
   }
 
-  String toString() => "${members}";
+  String toString() => "${members}".replaceAll("{", "[").replaceAll("}", "]");
 
   bool equals(IType t) {
     bool ret = true;
